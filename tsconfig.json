@@ -1,0 +1,15 @@
+{
+  "compileOnSave": true,
+  "compilerOptions": {
+    "strict": true,
+    "strictNullChecks": false,
+    "skipLibCheck": true,
+    "target": "ES5",
+    
+    "rootDir": "src/",
+    "outFile": "release/ANesEmu.js",
+  },
+  "exclude": [
+    "release/*"
+  ]
+}
