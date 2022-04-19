@@ -65,7 +65,7 @@ namespace anes
 		public reset(): void
 		{
 		}
-		public r3(addr: number): number
+		public r(addr: number): number
 		{
 			var data: number = 0;
 			if (addr == 0x4017)
@@ -74,7 +74,7 @@ namespace anes
 			}
 			return data;
 		}
-		public w3(addr: number, data: number): void
+		public w(addr: number, data: number): void
 		{
 			if (addr >= 0x4000 && addr <= 0x401F)
 			{
@@ -770,7 +770,7 @@ namespace anes
 			///}
 
 			///bus.cpu.w1(0x4018,FrameCount);
-			this.bus.cpu.w1(0x4018, 0);
+			this.bus.cpu.w(0x4018, 0);
 			///FrameCount = (FrameCount + 1) & 3;
 		}
 		/**
@@ -941,7 +941,7 @@ namespace anes
 					this.chD.phaseacc += this.chD.freq;
 					if (!(this.chD.dmalength & 7))
 					{
-						this.chD.cur_byte = this.bus.cpu.r1(this.chD.address);
+						this.chD.cur_byte = this.bus.cpu.r(this.chD.address);
 						if (0xFFFF == this.chD.address)
 						{
 							this.chD.address = 0x8000;
@@ -1012,7 +1012,7 @@ namespace anes
 			if (this.frameCycles >= 7458)
 			{
 				this.frameCycles -= 7458;
-				this.bus.cpu.w1(0x4018, 0); // 写入4018
+				this.bus.cpu.w(0x4018, 0); // 写入4018
 			}
 			// 更新DPCM(虚拟)
 			if (this.chD.sync_enable)

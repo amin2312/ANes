@@ -33,7 +33,7 @@
 		/**
 		 * Read data.
 		 */
-		public r5(dev: number): number
+		public r(dev: number): number
 		{
 			var data: number;
 			if (dev == 0)
@@ -53,7 +53,7 @@
 		/**
 		 * Write data.
 		 */
-		public w5(data: number): void
+		public w(data: number): void
 		{
 			if (data & 0x1 && this.bStrobe == false)
 			{

@@ -620,7 +620,7 @@ namespace anes
 		/**
 		 * Read data.
 		 */
-		public r2(address: number): number
+		public r(address: number): number
 		{
 			var value = 0;
 			if (address == 0x2002) // PPU status

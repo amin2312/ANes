@@ -188,14 +188,14 @@ var anes;
         }
         APU.prototype.reset = function () {
         };
-        APU.prototype.r3 = function (addr) {
+        APU.prototype.r = function (addr) {
             var data = 0;
             if (addr == 0x4017) {
                 data |= (1 << 6);
             }
             return data;
         };
-        APU.prototype.w3 = function (addr, data) {
+        APU.prototype.w = function (addr, data) {
             if (addr >= 0x4000 && addr <= 0x401F) {
                 this.virtualWrite(addr, data);
                 // 加入原始样本
@@ -792,7 +792,7 @@ var anes;
             //	}
             ///}
             ///bus.cpu.w1(0x4018,FrameCount);
-            this.bus.cpu.w1(0x4018, 0);
+            this.bus.cpu.w(0x4018, 0);
             ///FrameCount = (FrameCount + 1) & 3;
         };
         /**
@@ -925,7 +925,7 @@ var anes;
                 while (this.chD.phaseacc < 0) {
                     this.chD.phaseacc += this.chD.freq;
                     if (!(this.chD.dmalength & 7)) {
-                        this.chD.cur_byte = this.bus.cpu.r1(this.chD.address);
+                        this.chD.cur_byte = this.bus.cpu.r(this.chD.address);
                         if (0xFFFF == this.chD.address) {
                             this.chD.address = 0x8000;
                         }
@@ -984,7 +984,7 @@ var anes;
             this.frameCycles += cycles;
             if (this.frameCycles >= 7458) {
                 this.frameCycles -= 7458;
-                this.bus.cpu.w1(0x4018, 0); // 写入4018
+                this.bus.cpu.w(0x4018, 0); // 写入4018
             }
             // 更新DPCM(虚拟)
             if (this.chD.sync_enable) {
@@ -1201,10 +1201,10 @@ var anes;
             this.PC = this.memory[0xFFFF] << 8 | this.memory[0xFFFE];
         };
         /**
-         * Read value from memory.
+         * Read data.
          */
-        CPU.prototype.r1 = function (addr) {
-            // Get addr segment
+        CPU.prototype.r = function (addr) {
+            // get addr segment
             this.seg = addr >> 13;
             if (this.seg == 0x00) {
                 /* $0000-$1FFF(RAM) */
@@ -1212,22 +1212,22 @@ var anes;
             }
             else if (this.seg == 0x01) {
                 /* $2000-$3FFF(PPU) */
-                return this.bus.ppu.r2(addr & 0xE007);
+                return this.bus.ppu.r(addr & 0xE007);
             }
             else if (this.seg == 0x02) {
                 /* $4000-$5FFF(Registers) */
                 if (addr < 0x4100) {
                     if (addr <= 0x4013 || addr == 0x4015) {
                         // APU
-                        return this.bus.apu.r3(addr);
+                        return this.bus.apu.r(addr);
                     }
                     else if (addr == 0x4016) {
                         // Joypad 1
-                        return this.bus.joypad.r5(0);
+                        return this.bus.joypad.r(0);
                     }
                     else if (addr == 0x4017) {
                         // Joypad 2
-                        return this.bus.joypad.r5(1) | this.bus.apu.r3(addr);
+                        return this.bus.joypad.r(1) | this.bus.apu.r(addr);
                     }
                     else {
                         console.log('uncope read register');
@@ -1249,9 +1249,9 @@ var anes;
             return 0;
         };
         /**
-         * Write data to memory.
+         * Write data.
          */
-        CPU.prototype.w1 = function (addr, value) {
+        CPU.prototype.w = function (addr, value) {
             // get addr segment
             this.seg = addr >> 13;
             if (this.seg == 0x00) {
@@ -1267,7 +1267,7 @@ var anes;
                 if (addr < 0x4100) {
                     if (addr <= 0x4013 || addr == 0x4015 || addr == 0x4017 || addr == 0x4018) {
                         // APU
-                        this.bus.apu.w3(addr, value);
+                        this.bus.apu.w(addr, value);
                     }
                     else if (addr == 0x4014) {
                         // DMA
@@ -1279,7 +1279,7 @@ var anes;
                     }
                     else if (addr == 0x4016) {
                         // Joypad
-                        this.bus.joypad.w5(value);
+                        this.bus.joypad.w(value);
                     }
                     else {
                         //console.log('uncope write register',addr.toString(16));
@@ -1299,7 +1299,7 @@ var anes;
             }
         };
         /**
-         * Execution instruction.
+         * execution instruction(execute instruction
          */
         CPU.prototype.exec = function (requiredCC) {
             for (;;) {
@@ -1314,39 +1314,39 @@ var anes;
                             }
                             /* INC 16bit,X */
                             else if (this.oc == 0xFE) {
-                                // 1.indexed addressing [X]
+                                // 1.Absolute X Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
-                                // 2.Exec instruction [INC]
-                                this.src = this.r1(this.addr) + 1 & 0xFF;
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 2.execute instruction
+                                this.src = this.r(this.addr) + 1 & 0xFF;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
-                                this.w1(this.addr, this.src);
+                                // 4.save data
+                                this.w(this.addr, this.src);
                             }
                             /* SBC 16bit,X */
                             else if (this.oc == 0xFD) {
-                                // 1.indexed addressing [X]
+                                // 1.Absolute X Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
-                                // 2.Exec instruction [SBC]
-                                this.src = this.r1(this.addr);
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
                                 this.dst = (this.A - this.src) - (+!this.CF);
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.VF = (0x80 & (this.A ^ this.src) & (this.A ^ this.dst)) > 0;
+                                this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
-                                this.NF = (this.A & 0x80) > 0;
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
@@ -1362,30 +1362,29 @@ var anes;
                             }
                             /* SBC 16bit,Y */
                             else if (this.oc == 0xF9) {
-                                // 1.indexed addressing [Y]
+                                // 1.Absolute Y Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.Y;
-                                // 2.Exec instruction [SBC]
-                                this.src = this.r1(this.addr);
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
                                 this.dst = (this.A - this.src) - (+!this.CF);
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.VF = (0x80 & (this.A ^ this.src) & (this.A ^ this.dst)) > 0;
+                                this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
-                                this.NF = (this.A & 0x80) > 0;
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
                             }
                             /* SED */
-                            else {
-                                /*0xF8*/
-                                // Exec instruction [SED]
+                            else /*0xF8*/ {
+                                // 2.execute instruction
                                 this.DF = true;
                             }
                         }
@@ -1394,31 +1393,31 @@ var anes;
                             }
                             /* INC 8bit,X */
                             else if (this.oc == 0xF6) {
-                                // 1.indexed addressing [X]
+                                // 1.Zero-page X Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.X & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [INC]
+                                // 2.execute instruction
                                 this.src = this.memory[this.addr] + 1 & 0xFF;
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
+                                // 4.save data
                                 this.memory[this.addr] = this.src;
                             }
                             /* SBC 8bit,X */
                             else if (this.oc == 0xF5) {
-                                // 1.零页X变址寻址
+                                // 1.Zero-page X Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.X & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [sbc]
+                                // 2.execute instruction
                                 this.src = this.memory[this.addr];
                                 this.dst = (this.A - this.src) - (+!this.CF);
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.VF = (0x80 & (this.A ^ this.src) & (this.A ^ this.dst)) > 0;
+                                this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
-                                this.NF = (this.A & 0x80) > 0;
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             else {
@@ -1432,33 +1431,33 @@ var anes;
                             }
                             /* SBC (8bit),Y */
                             else if (this.oc == 0xF1) {
-                                // 1.先零页间址后Y变址寻址
+                                // 1.Zero Page Indirect Indexed with Y
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
                                 this.addr = this.tmpN + this.Y;
-                                // 2.Exec instruction [sbc]
-                                this.src = this.r1(this.addr);
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
                                 this.dst = (this.A - this.src) - (+!this.CF);
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.VF = (0x80 & (this.A ^ this.src) & (this.A ^ this.dst)) > 0;
+                                this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
-                                this.NF = (this.A & 0x80) > 0;
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
                             }
                             /* BEQ #8bit */
-                            else {
-                                // 1.Immediate Addressing
+                            else /*0xF0*/ {
+                                // 1.Relative Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [beq]
+                                // 2.execute instruction
                                 if (this.ZF) {
                                     this.tmpN = this.PC;
-                                    this.addr = (this.PC + this.l_or) & 0xFFFF;
+                                    this.addr = this.PC + ((this.l_or << 24) >> 24) & 0xFFFF;
                                     this.PC = this.addr;
                                     // 9.sum clock cycles
                                     this.onceExecedCC += 1;
@@ -1474,53 +1473,53 @@ var anes;
                             }
                             /* INC 16bit */
                             else if (this.oc == 0xEE) {
-                                // 1.绝对寻址
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [inc]
-                                this.src = this.r1(this.addr) + 1 & 0xFF;
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 2.execute instruction
+                                this.src = this.r(this.addr) + 1 & 0xFF;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
-                                this.w1(this.addr, this.src);
+                                // 4.save data
+                                this.w(this.addr, this.src);
                             }
                             /* SBC 16bit */
                             else if (this.oc == 0xED) {
-                                // 1.绝对寻址
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [sbc]
-                                this.src = this.r1(this.addr);
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
                                 this.dst = (this.A - this.src) - (+!this.CF);
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.VF = (0x80 & (this.A ^ this.src) & (this.A ^ this.dst)) > 0;
+                                this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
-                                this.NF = (this.A & 0x80) > 0;
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* CPX 16bit */
                             else /*0xEC*/ {
-                                // 1.绝对寻址
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [cpx]
-                                this.dst = this.X - this.r1(this.addr);
-                                // 3.Update flags
+                                // 2.execute instruction
+                                this.dst = this.X - this.r(this.addr);
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.NF = (this.dst & 0x80) > 0;
+                                this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
                         }
@@ -1535,24 +1534,24 @@ var anes;
                                 // 1.Immediate Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [sbc]
+                                // 2.execute instruction
                                 this.src = this.l_or;
                                 this.dst = (this.A - this.src) - (+!this.CF);
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.VF = (0x80 & (this.A ^ this.src) & (this.A ^ this.dst)) > 0;
+                                this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
-                                this.NF = (this.A & 0x80) > 0;
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* INX */
                             else /*0xE8*/ {
-                                // 2.Exec instruction [inx]
+                                // 2.execute instruction
                                 this.X += 1;
                                 this.X &= 0xFF; // [fixed]
-                                // 3.Update flags
-                                this.NF = (this.X & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.X & 0x80);
                                 this.ZF = !this.X;
                             }
                         }
@@ -1561,44 +1560,44 @@ var anes;
                             }
                             /* INC 8bit */
                             else if (this.oc == 0xE6) {
-                                // 1.零页寻址
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [inc]
+                                // 2.execute instruction
                                 this.src = this.memory[this.addr] + 1 & 0xFF;
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
+                                // 4.save data
                                 this.memory[this.addr] = this.src;
                             }
                             /* SBC 8bit */
                             else if (this.oc == 0xE5) {
-                                // 1.零页寻址
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [sbc]
+                                // 2.execute instruction
                                 this.src = this.memory[this.addr];
                                 this.dst = (this.A - this.src) - (+!this.CF);
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.VF = (0x80 & (this.A ^ this.src) & (this.A ^ this.dst)) > 0;
+                                this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
-                                this.NF = (this.A & 0x80) > 0;
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* CPX 8bit */
-                            else { /*0xE4*/
-                                // 1.零页寻址
+                            else /*0xE4*/ {
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [cpx]
+                                // 2.execute instruction
                                 this.dst = this.X - this.memory[this.addr];
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.NF = (this.dst & 0x80) > 0;
+                                this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
                         }
@@ -1609,32 +1608,32 @@ var anes;
                             }
                             /* SBC (8bit,X) */
                             else if (this.oc == 0xE1) {
-                                // 1.先零页X变址后间址寻址
+                                // 1.Zero Page Indexed Indirect Addressing,X
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.memory[(this.l_or + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_or + this.X & 0xFF];
-                                // 2.Exec instruction [sbc]
-                                this.src = this.r1(this.addr);
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
                                 this.dst = (this.A - this.src) - (+!this.CF);
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.VF = (0x80 & (this.A ^ this.src) & (this.A ^ this.dst)) > 0;
+                                this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
-                                this.NF = (this.A & 0x80) > 0;
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* CPX #8bit */
-                            else { /*0xE0*/
+                            else /*0xE0*/ {
                                 // 1.Immediate Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [cpx]
+                                // 2.execute instruction
                                 this.dst = this.X - this.l_or;
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.NF = (this.dst & 0x80) > 0;
+                                this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
                         }
@@ -1646,36 +1645,36 @@ var anes;
                             }
                             /* DEC 16bit,X */
                             else if (this.oc == 0xDE) {
-                                // 1.绝对X变址寻址
+                                // 1.Absolute X Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
-                                // 2.Exec instruction [dec]
-                                this.src = this.r1(this.addr) - 1 & 0xFF;
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 2.execute instruction
+                                this.src = this.r(this.addr) - 1 & 0xFF;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
-                                this.w1(this.addr, this.src);
+                                // 4.save data
+                                this.w(this.addr, this.src);
                             }
                             /* CMP 16bit,X */
                             else if (this.oc == 0xDD) {
-                                // 1.绝对X变址寻址
+                                // 1.Absolute X Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
-                                // 2.Exec instruction [cmp]
-                                this.dst = this.A - this.r1(this.addr);
-                                // 3.Update flags
+                                // 2.execute instruction
+                                this.dst = this.A - this.r(this.addr);
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.NF = (this.dst & 0x80) > 0;
+                                this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
@@ -1691,26 +1690,26 @@ var anes;
                             }
                             /* CMP 16bit,Y */
                             else if (this.oc == 0xD9) {
-                                // 1.绝对Y变址寻址
+                                // 1.Absolute Y Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.Y;
-                                // 2.Exec instruction [cmp]
-                                this.dst = this.A - this.r1(this.addr);
-                                // 3.Update flags
+                                // 2.execute instruction
+                                this.dst = this.A - this.r(this.addr);
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.NF = (this.dst & 0x80) > 0;
+                                this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
                             }
                             /* CLD */
-                            else { /*0xD8*/
-                                // 2.Exec instruction 
+                            else /*0xD8*/ {
+                                // 2.execute instruction
                                 this.DF = false;
                             }
                         }
@@ -1719,28 +1718,28 @@ var anes;
                             }
                             /* DEC 8bit,X */
                             else if (this.oc == 0xD6) {
-                                // 1.零页X变址寻址
+                                // 1.Zero-page X Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.X & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [dec]
+                                // 2.execute instruction
                                 this.src = this.memory[this.addr] - 1 & 0xFF;
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
+                                // 4.save data
                                 this.memory[this.addr] = this.src;
                             }
                             /* CMP 8bit,X */
                             else if (this.oc == 0xD5) {
-                                // 1.零页X变址寻址
+                                // 1.Zero-page X Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.X & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [cmp]
+                                // 2.execute instruction
                                 this.dst = this.A - this.memory[this.addr];
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.NF = (this.dst & 0x80) > 0;
+                                this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
                             else {
@@ -1754,30 +1753,30 @@ var anes;
                             }
                             /* CMP (8bit),Y */
                             else if (this.oc == 0xD1) {
-                                // 1.先零页间址后Y变址寻址
+                                // 1.Zero Page Indirect Indexed with Y
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
                                 this.addr = this.tmpN + this.Y;
-                                // 2.Exec instruction [cmp]
-                                this.dst = this.A - this.r1(this.addr);
-                                // 3.Update flags
+                                // 2.execute instruction
+                                this.dst = this.A - this.r(this.addr);
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.NF = (this.dst & 0x80) > 0;
+                                this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
                             }
                             /* BNE #8bit */
                             else {
-                                // 1.Immediate Addressing
+                                // 1.Relative Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [bne]
+                                // 2.execute instruction
                                 if (!this.ZF) {
                                     this.tmpN = this.PC;
-                                    this.addr = (this.PC + this.l_or) & 0xFFFF;
+                                    this.addr = this.PC + ((this.l_or << 24) >> 24) & 0xFFFF;
                                     this.PC = this.addr;
                                     // 9.sum clock cycles
                                     this.onceExecedCC += 1;
@@ -1793,50 +1792,50 @@ var anes;
                             }
                             /* DEC 16bit */
                             else if (this.oc == 0xCE) {
-                                // 1.绝对寻址
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [dec]
-                                this.src = this.r1(this.addr) - 1 & 0xFF;
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 2.execute instruction
+                                this.src = this.r(this.addr) - 1 & 0xFF;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
-                                this.w1(this.addr, this.src);
+                                // 4.save data
+                                this.w(this.addr, this.src);
                             }
                             /* CMP 16bit */
                             else if (this.oc == 0xCD) {
-                                // 1.绝对寻址
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [cmp]
-                                this.dst = this.A - this.r1(this.addr);
-                                // 3.Update flags
+                                // 2.execute instruction
+                                this.dst = this.A - this.r(this.addr);
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.NF = (this.dst & 0x80) > 0;
+                                this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
                             /* CPY 16bit */
-                            else { /*0xCC*/
-                                // 1.绝对寻址
+                            else /*0xCC*/ {
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [cmy]
-                                this.dst = this.Y - this.r1(this.addr);
-                                // 3.Update flags
+                                // 2.execute instruction
+                                this.dst = this.Y - this.r(this.addr);
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.NF = (this.dst & 0x80) > 0;
+                                this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
                         }
@@ -1845,11 +1844,11 @@ var anes;
                             }
                             /* DEX */
                             else if (this.oc == 0xCA) {
-                                // 2.Exec instruction [dex]
+                                // 2.execute instruction
                                 this.X -= 1;
                                 this.X &= 0xFF; // [fixed]
-                                // 3.Update flags
-                                this.NF = (this.X & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.X & 0x80);
                                 this.ZF = !this.X;
                             }
                             /* CMP #8bit */
@@ -1857,21 +1856,21 @@ var anes;
                                 // 1.Immediate Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [cmp]
+                                // 2.execute instruction
                                 this.dst = this.A - this.l_or;
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.NF = (this.dst & 0x80) > 0;
+                                this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
                             /* INY */
-                            else { /*0xC8*/
-                                // 2.Exec instruction [iny]
+                            else /*0xC8*/ {
+                                // 2.execute instruction
                                 this.Y += 1;
                                 this.Y &= 0xFF; // [fixed]
-                                // 3.Update flags
-                                this.NF = (this.Y & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.Y & 0x80);
                                 this.ZF = !this.Y;
                             }
                         }
@@ -1880,41 +1879,41 @@ var anes;
                             }
                             /* DEC 8bit */
                             else if (this.oc == 0xC6) {
-                                // 1.零页寻址
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [dec]
+                                // 2.execute instruction
                                 this.src = this.memory[this.addr] - 1 & 0xFF;
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
-                                this.w1(this.addr, this.src);
+                                // 4.save data
+                                this.w(this.addr, this.src);
                             }
                             /* CMP 8bit */
                             else if (this.oc == 0xC5) {
-                                // 1.零页寻址
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [cmp]
+                                // 2.execute instruction
                                 this.dst = this.A - this.memory[this.addr];
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.NF = (this.dst & 0x80) > 0;
+                                this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
                             /* CPY 8bit */
-                            else { /*0xC4*/
-                                // 1.零页寻址
+                            else /*0xC4*/ {
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [cpy]
+                                // 2.execute instruction
                                 this.dst = this.Y - this.memory[this.addr];
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.NF = (this.dst & 0x80) > 0;
+                                this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
                         }
@@ -1925,29 +1924,29 @@ var anes;
                             }
                             /* CMP (8bit,X) */
                             else if (this.oc == 0xC1) {
-                                // 1.先零页X变址后间址寻址
+                                // 1.Zero Page Indexed Indirect Addressing,X
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.memory[(this.l_or + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_or + this.X & 0xFF];
-                                // 2.Exec instruction [cmp]
-                                this.dst = this.A - this.r1(this.addr);
-                                // 3.Update flags
+                                // 2.execute instruction
+                                this.dst = this.A - this.r(this.addr);
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.NF = (this.dst & 0x80) > 0;
+                                this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
                             /* CPY #8bit */
-                            else { /*0xC0*/
+                            else /*0xC0*/ {
                                 // 1.Immediate Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [cpy]
+                                // 2.execute instruction
                                 this.dst = this.Y - this.l_or;
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.NF = (this.dst & 0x80) > 0;
+                                this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
                         }
@@ -1961,51 +1960,51 @@ var anes;
                             }
                             /* LDX 16bit,Y */
                             else if (this.oc == 0xBE) {
-                                // 1.绝对Y变址寻址
+                                // 1.Absolute Y Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.Y;
-                                // 2.Exec instruction [ldx]
-                                this.X = this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.X & 0x80) > 0;
+                                // 2.execute instruction
+                                this.X = this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.X & 0x80);
                                 this.ZF = !this.X;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
                             }
                             /* LDA 16bit,X */
                             else if (this.oc == 0xBD) {
-                                // 1.绝对X变址寻址
+                                // 1.Absolute X Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
-                                // 2.Exec instruction [lda]
-                                this.A = this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A = this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
                             }
                             /*  LDY 16bit,X */
-                            else { /*0xBC*/
-                                // 1.绝对X变址寻址
+                            else /*0xBC*/ {
+                                // 1.Absolute X Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
-                                // 2.Exec instruction [ldy]
-                                this.Y = this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.Y & 0x80) > 0;
+                                // 2.execute instruction
+                                this.Y = this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.Y & 0x80);
                                 this.ZF = !this.Y;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
@@ -2016,32 +2015,32 @@ var anes;
                             }
                             /* TSX */
                             else if (this.oc == 0xBA) {
-                                // 2.Exec instruction [tsx]
+                                // 2.execute instruction
                                 this.X = this.S;
-                                // 3.Update flags
-                                this.NF = (this.X & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.X & 0x80);
                                 this.ZF = !this.X;
                             }
                             /* LDA 16bit,Y */
                             else if (this.oc == 0xB9) {
-                                // 1.绝对Y变址寻址
+                                // 1.Absolute Y Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.Y;
-                                // 2.Exec instruction [lda]
-                                this.A = this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A = this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
                             }
                             /* CLV */
                             else {
-                                // 2.Exec instruction 
+                                // 2.execute instruction
                                 this.VF = false;
                             }
                         }
@@ -2050,35 +2049,35 @@ var anes;
                             }
                             /* LDX 8bit,Y */
                             else if (this.oc == 0xB6) {
-                                // 1.零页Y变址寻址
+                                // 1.Zero-page Y Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.Y & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [ldx]
+                                // 2.execute instruction
                                 this.X = this.memory[this.addr];
-                                // 3.Update flags
-                                this.NF = (this.X & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.X & 0x80);
                                 this.ZF = !this.X;
                             }
                             /* LDA 8bit,X */
                             else if (this.oc == 0xB5) {
-                                // 1.零页X变址寻址
+                                // 1.Zero-page X Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.X & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [lda]
+                                // 2.execute instruction
                                 this.A = this.memory[this.addr];
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* LDY 8bit,X */
-                            else { /*0xB4*/
-                                // 1.零页X变址寻址
+                            else /*0xB4*/ {
+                                // 1.Zero-page X Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.X & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [lda]
+                                // 2.execute instruction
                                 this.Y = this.memory[this.addr];
-                                // 3.Update flags
-                                this.NF = (this.Y & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.Y & 0x80);
                                 this.ZF = !this.Y;
                             }
                         }
@@ -2089,28 +2088,28 @@ var anes;
                             }
                             /* LDA (8bit),Y */
                             else if (this.oc == 0xB1) {
-                                // 1.先零页间址后Y变址寻址
+                                // 1.Zero Page Indirect Indexed with Y
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
                                 this.addr = this.tmpN + this.Y;
-                                // 2.Exec instruction [lda]
-                                this.A = this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A = this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
                             }
                             /* BCS #8bit */
-                            else {
-                                // 1.Immediate Addressing
+                            else /*0xB0*/ {
+                                // 1.Relative Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [bcs]
-                                if (this.CF) {
+                                // 2.execute instruction
+                                if (+this.CF) {
                                     this.tmpN = this.PC;
-                                    this.addr = (this.PC + this.l_or << 24) & 0xFFFF;
+                                    this.addr = this.PC + ((this.l_or << 24) >> 24) & 0xFFFF;
                                     this.PC = this.addr;
                                     // 9.sum clock cycles
                                     this.onceExecedCC += 1;
@@ -2126,44 +2125,44 @@ var anes;
                             }
                             /* LDX 16bit */
                             else if (this.oc == 0xAE) {
-                                // 1.绝对寻址
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [ldx]
-                                this.X = this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.X & 0x80) > 0;
+                                // 2.execute instruction
+                                this.X = this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.X & 0x80);
                                 this.ZF = !this.X;
                             }
                             /* LDA 16bit */
                             else if (this.oc == 0xAD) {
-                                // 1.绝对寻址
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [lda]
-                                this.A = this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A = this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* LDY 16bit */
-                            else { /*0xAC*/
-                                // 1.绝对寻址
+                            else /*0xAC*/ {
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [ldy]
-                                this.Y = this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.Y & 0x80) > 0;
+                                // 2.execute instruction
+                                this.Y = this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.Y & 0x80);
                                 this.ZF = !this.Y;
                             }
                         }
@@ -2172,10 +2171,10 @@ var anes;
                             }
                             /* TAX */
                             else if (this.oc == 0xAA) {
-                                // 2.Exec instruction [tax]
+                                // 2.execute instruction
                                 this.X = this.A;
-                                // 3.Update flags
-                                this.NF = (this.X & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.X & 0x80);
                                 this.ZF = !this.X;
                             }
                             /* LDA #8bit */
@@ -2183,18 +2182,18 @@ var anes;
                                 // 1.Immediate Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [lda]
+                                // 2.execute instruction
                                 this.A = this.l_or;
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* TAY */
-                            else { /*0xA8*/
-                                // 2.Exec instruction [tay]
+                            else /*0xA8*/ {
+                                // 2.execute instruction
                                 this.Y = this.A;
-                                // 3.Update flags
-                                this.NF = (this.Y & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.Y & 0x80);
                                 this.ZF = !this.Y;
                             }
                         }
@@ -2203,35 +2202,35 @@ var anes;
                             }
                             /* LDX 8bit */
                             else if (this.oc == 0xA6) {
-                                // 1.零页寻址
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [ldx]
+                                // 2.execute instruction
                                 this.X = this.memory[this.addr];
-                                // 3.Update flags
-                                this.NF = (this.X & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.X & 0x80);
                                 this.ZF = !this.X;
                             }
                             /* LDA 8bit */
                             else if (this.oc == 0xA5) {
-                                // 1.零页寻址
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [lda]
+                                // 2.execute instruction
                                 this.A = this.memory[this.addr];
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* LDY 8bit */
-                            else { /*0xA4*/
-                                // 1.零页寻址
+                            else /*0xA4*/ {
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [ldy]
+                                // 2.execute instruction
                                 this.Y = this.memory[this.addr];
-                                // 3.Update flags
-                                this.NF = (this.Y & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.Y & 0x80);
                                 this.ZF = !this.Y;
                             }
                         }
@@ -2243,33 +2242,33 @@ var anes;
                                 // 1.Immediate Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [ldx]
+                                // 2.execute instruction
                                 this.X = this.l_or;
-                                // 3.Update flags
-                                this.NF = (this.X & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.X & 0x80);
                                 this.ZF = !this.X;
                             }
                             /* LDA (8bit,X) */
                             else if (this.oc == 0xA1) {
-                                // 1.先零页X变址后间址寻址
+                                // 1.Zero Page Indexed Indirect Addressing,X
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.memory[(this.l_or + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_or + this.X & 0xFF];
-                                // 2.Exec instruction [lda]
-                                this.A = this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A = this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* LDY #8bit */
-                            else { /*0xA0*/
+                            else /*0xA0*/ {
                                 // 1.Immediate Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [ldy]
+                                // 2.execute instruction
                                 this.Y = this.l_or;
-                                // 3.Update flags
-                                this.NF = (this.Y & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.Y & 0x80);
                                 this.ZF = !this.Y;
                             }
                         }
@@ -2283,16 +2282,16 @@ var anes;
                             }
                             /* STA 16bit,X */
                             else if (this.oc == 0x9D) {
-                                // 1.绝对X变址寻址
+                                // 1.Absolute X Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
-                                // 2.Exec instruction [sta]
+                                // 2.execute instruction
                                 this.src = this.A;
-                                this.w1(this.addr, this.src);
+                                this.w(this.addr, this.src);
                             }
                             else {
                             }
@@ -2302,28 +2301,28 @@ var anes;
                             }
                             /* TXS */
                             else if (this.oc == 0x9A) {
-                                // 2.Exec instruction 
+                                // 2.execute instruction
                                 this.S = this.X;
                             }
                             /* STA 16bit,Y */
                             else if (this.oc == 0x99) {
-                                // 1.绝对Y变址寻址
+                                // 1.Absolute Y Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.Y;
-                                // 2.Exec instruction [sta]
+                                // 2.execute instruction
                                 this.src = this.A;
-                                this.w1(this.addr, this.src);
+                                this.w(this.addr, this.src);
                             }
                             /* TYA */
-                            else { /*0x98*/
-                                // 2.Exec instruction [tya]
+                            else /*0x98*/ {
+                                // 2.execute instruction
                                 this.A = this.Y;
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                         }
@@ -2332,26 +2331,26 @@ var anes;
                             }
                             /* STX 8bit,Y */
                             else if (this.oc == 0x96) {
-                                // 1.零页Y变址寻址
+                                // 1.Zero-page Y Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.Y & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [stx]
+                                // 2.execute instruction
                                 this.memory[this.addr] = this.X;
                             }
                             /* STA 8bit,X */
                             else if (this.oc == 0x95) {
-                                // 1.零页X变址寻址
+                                // 1.Zero-page X Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.X & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [sta]
+                                // 2.execute instruction
                                 this.memory[this.addr] = this.A;
                             }
                             /* STY 8bit,X */
-                            else { /*0x94*/
-                                // 1.零页X变址寻址
+                            else /*0x94*/ {
+                                // 1.Zero-page X Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.X & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [sty]
+                                // 2.execute instruction
                                 this.memory[this.addr] = this.Y;
                             }
                         }
@@ -2362,24 +2361,24 @@ var anes;
                             }
                             /* STA (8bit),Y */
                             else if (this.oc == 0x91) {
-                                // 1.先零页间址后Y变址寻址
+                                // 1.Zero Page Indirect Indexed with Y
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
                                 this.addr = this.tmpN + this.Y;
-                                // 2.Exec instruction [sta]
+                                // 2.execute instruction
                                 this.src = this.A;
-                                this.w1(this.addr, this.src);
+                                this.w(this.addr, this.src);
                             }
                             /* BCC #8bit */
-                            else { /*0x90*/
-                                // 1.Immediate Addressing
+                            else /*0x90*/ {
+                                // 1.Relative Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [bcc]
+                                // 2.execute instruction
                                 if (!this.CF) {
                                     this.tmpN = this.PC;
-                                    this.addr = (this.PC + this.l_or) & 0xFFFF;
+                                    this.addr = this.PC + ((this.l_or << 24) >> 24) & 0xFFFF;
                                     this.PC = this.addr;
                                     // 9.sum clock cycles
                                     this.onceExecedCC += 1;
@@ -2395,39 +2394,39 @@ var anes;
                             }
                             /* STX 16bit */
                             else if (this.oc == 0x8E) {
-                                // 1.绝对寻址
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [stx]
+                                // 2.execute instruction
                                 this.src = this.X;
-                                this.w1(this.addr, this.src);
+                                this.w(this.addr, this.src);
                             }
                             /* STA 16bit */
                             else if (this.oc == 0x8D) {
-                                // 1.绝对寻址
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [sta]
+                                // 2.execute instruction
                                 this.src = this.A;
-                                this.w1(this.addr, this.src);
+                                this.w(this.addr, this.src);
                             }
                             /* STY 16bit */
-                            else { /*0x8C*/
-                                // 1.绝对寻址
+                            else /*0x8C*/ {
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [sty]
+                                // 2.execute instruction
                                 this.src = this.Y;
-                                this.w1(this.addr, this.src);
+                                this.w(this.addr, this.src);
                             }
                         }
                         else if (this.oc >= 0x88) {
@@ -2435,21 +2434,21 @@ var anes;
                             }
                             /* TXA */
                             else if (this.oc == 0x8A) {
-                                // 2.Exec instruction [txa]
+                                // 2.execute instruction
                                 this.A = this.X;
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             else if (this.oc == 0x89) {
                             }
                             /* DEY */
-                            else { /*0x88*/
-                                // 2.Exec instruction [dey]
+                            else /*0x88*/ {
+                                // 2.execute instruction
                                 this.Y -= 1;
                                 this.Y &= 0xFF; // [fixed]
-                                // 3.Update flags
-                                this.NF = (this.Y & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.Y & 0x80);
                                 this.ZF = !this.Y;
                             }
                         }
@@ -2458,28 +2457,28 @@ var anes;
                             }
                             /* STX 8bit */
                             else if (this.oc == 0x86) {
-                                // 1.零页寻址
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [stx]
+                                // 2.execute instruction
                                 this.src = this.X;
                                 this.memory[this.addr] = this.src;
                             }
                             /* STA 8bit */
                             else if (this.oc == 0x85) {
-                                // 1.零页寻址
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [sta]
+                                // 2.execute instruction
                                 this.src = this.A;
                                 this.memory[this.addr] = this.src;
                             }
                             /* STY 8bit */
-                            else { /*0x84*/
-                                // 1.零页寻址
+                            else /*0x84*/ {
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [sty]
+                                // 2.execute instruction
                                 this.src = this.Y;
                                 this.memory[this.addr] = this.src;
                             }
@@ -2491,13 +2490,13 @@ var anes;
                             }
                             /* STA (8bit,X) */
                             else if (this.oc == 0x81) {
-                                // 1.先零页X变址后间址寻址
+                                // 1.Zero Page Indexed Indirect Addressing,X
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.memory[(this.l_or + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_or + this.X & 0xFF];
-                                // 2.Exec instruction [sta]
+                                // 2.execute instruction
                                 this.src = this.A;
-                                this.w1(this.addr, this.src);
+                                this.w(this.addr, this.src);
                             }
                             else {
                             }
@@ -2512,42 +2511,42 @@ var anes;
                             }
                             /* ROR 16bit,X */
                             else if (this.oc == 0x7E) {
-                                // 1.绝对X变址寻址
+                                // 1.Absolute X Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
-                                // 2.Exec instruction [ror]
-                                this.src = this.r1(this.addr);
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
                                 this.tmpB = this.CF;
-                                this.CF = (this.src & 0x01) > 0;
+                                this.CF = Boolean(this.src & 0x01);
                                 this.src = this.src >> 1 | (+this.tmpB) << 7;
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
-                                this.w1(this.addr, this.src);
+                                // 4.save data
+                                this.w(this.addr, this.src);
                             }
                             /* ADC 16bit,X */
                             else if (this.oc == 0x7D) {
-                                // 1.绝对X变址寻址
+                                // 1.Absolute X Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
-                                // 2.Exec instruction [adc]
-                                this.src = this.r1(this.addr);
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
                                 this.dst = (this.A + this.src) + (+this.CF);
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst > 0xFF;
                                 this.dst &= 0xFF; // [fixed]
-                                this.VF = (0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst)) > 0;
+                                this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
-                                this.NF = (this.A & 0x80) > 0;
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
@@ -2562,29 +2561,29 @@ var anes;
                             }
                             /* ADC 16bit,Y */
                             else if (this.oc == 0x79) {
-                                // 1.绝对Y变址寻址
+                                // 1.Absolute Y Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.Y;
-                                // 2.Exec instruction [adc]
-                                this.src = this.r1(this.addr);
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
                                 this.dst = (this.A + this.src) + (+this.CF);
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst > 0xFF;
                                 this.dst &= 0xFF; // [fixed]
-                                this.VF = (0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst)) > 0;
+                                this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
-                                this.NF = (this.A & 0x80) > 0;
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
                             }
                             /* SEI */
-                            else { /*0x78*/
-                                // 2.Exec instruction [sei]
+                            else /*0x78*/ {
+                                // 2.execute instruction
                                 this.IF = true;
                             }
                         }
@@ -2593,34 +2592,34 @@ var anes;
                             }
                             /* ROR 8bit,X */
                             else if (this.oc == 0x76) {
-                                // 1.零页X变址寻址
+                                // 1.Zero-page X Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.X & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [ror]
+                                // 2.execute instruction
                                 this.src = this.memory[this.addr];
                                 this.tmpB = this.CF;
-                                this.CF = (this.src & 0x01) > 0;
+                                this.CF = Boolean(this.src & 0x01);
                                 this.src = this.src >> 1 | (+this.tmpB) << 7;
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
+                                // 4.save data
                                 this.memory[this.addr] = this.src;
                             }
                             /* ADC 8bit,X */
                             else if (this.oc == 0x75) {
-                                // 1.零页X变址寻址
+                                // 1.Zero-page X Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.X & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [adc]
+                                // 2.execute instruction
                                 this.src = this.memory[this.addr];
                                 this.dst = (this.A + this.src) + (+this.CF);
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst > 0xFF;
                                 this.dst &= 0xFF; // [fixed]
-                                this.VF = (0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst)) > 0;
+                                this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
-                                this.NF = (this.A & 0x80) > 0;
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             else {
@@ -2633,33 +2632,33 @@ var anes;
                             }
                             /* ADC (8bit),Y */
                             else if (this.oc == 0x71) {
-                                // 1.先零页间址后Y变址寻址
+                                // 1.Zero Page Indirect Indexed with Y
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
                                 this.addr = this.tmpN + this.Y;
-                                // 2.Exec instruction [adc]
-                                this.src = this.r1(this.addr);
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
                                 this.dst = (this.A + this.src) + (+this.CF);
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst > 0xFF;
                                 this.dst &= 0xFF; // [fixed]
-                                this.VF = (0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst)) > 0;
+                                this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
-                                this.NF = (this.A & 0x80) > 0;
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
                             }
                             /* BVS #8bit */
-                            else { /*0x70*/
-                                // 1.Immediate Addressing
+                            else /*0x70*/ {
+                                // 1.Relative Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [bvs]
+                                // 2.execute instruction
                                 if (this.VF) {
                                     this.tmpN = this.PC;
-                                    this.addr = (this.PC + this.l_or) & 0xFFFF;
+                                    this.addr = this.PC + ((this.l_or << 24) >> 24) & 0xFFFF;
                                     this.PC = this.addr;
                                     // 9.sum clock cycles
                                     this.onceExecedCC += 1;
@@ -2675,54 +2674,54 @@ var anes;
                             }
                             /* ROR 16bit */
                             else if (this.oc == 0x6E) {
-                                // 1.绝对寻址
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [ror]
-                                this.src = this.r1(this.addr);
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
                                 this.tmpB = this.CF;
-                                this.CF = (this.src & 0x01) > 0;
+                                this.CF = Boolean(this.src & 0x01);
                                 this.src = this.src >> 1 | (+this.tmpB) << 7;
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
-                                this.w1(this.addr, this.src);
+                                // 4.save data
+                                this.w(this.addr, this.src);
                             }
                             /* ADC 16bit */
                             else if (this.oc == 0x6D) {
-                                // 1.绝对寻址
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [adc]
-                                this.src = this.r1(this.addr);
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
                                 this.dst = (this.A + this.src) + (+this.CF);
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst > 0xFF;
                                 this.dst &= 0xFF; // [fixed]
-                                this.VF = (0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst)) > 0;
+                                this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
-                                this.NF = (this.A & 0x80) > 0;
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* JMP (16bit) */
-                            else { /*0x6C*/
-                                // 1.相对寻址
+                            else /*0x6C*/ {
+                                // 1.Absolute Indirect
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                this.l_addr = this.r1(this.addr);
-                                this.u_addr = this.r1(this.addr + 1 & 0xFFFF);
+                                this.l_addr = this.r(this.addr);
+                                this.u_addr = this.r(this.addr + 1 & 0xFFFF);
                                 this.addr = this.u_addr << 8 | this.l_addr;
-                                // 2.Exec instruction [jmp]
+                                // 2.execute instruction
                                 this.PC = this.addr;
                             }
                         }
@@ -2731,13 +2730,13 @@ var anes;
                             }
                             /* ROR */
                             else if (this.oc == 0x6A) {
-                                // 2.Exec instruction [ror]
+                                // 2.execute instruction
                                 this.tmpB = this.CF;
-                                this.CF = (this.A & 0x01) > 0;
+                                this.CF = Boolean(this.A & 0x01);
                                 this.A = this.A >> 1 | (+this.tmpB) << 7;
                                 this.A &= 0xFF; // [fixed]
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* ADC #8bit */
@@ -2745,25 +2744,25 @@ var anes;
                                 // 1.Immediate Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [adc]
+                                // 2.execute instruction
                                 this.src = this.l_or;
                                 this.dst = (this.A + this.src) + (+this.CF);
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst > 0xFF;
                                 this.dst &= 0xFF; // [fixed]
-                                this.VF = (0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst)) > 0;
+                                this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
-                                this.NF = (this.A & 0x80) > 0;
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* PLA */
                             else {
-                                // 2.Exec instruction [pla]
+                                // 2.execute instruction
                                 this.S += 1;
                                 this.S &= 0xFF; // [fixed]
                                 this.A = this.memory[0x0100 + this.S];
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                         }
@@ -2772,34 +2771,34 @@ var anes;
                             }
                             /* ROR 8bit */
                             else if (this.oc == 0x66) {
-                                // 1.零页寻址
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [ror]
+                                // 2.execute instruction
                                 this.src = this.memory[this.addr];
                                 this.tmpB = this.CF;
-                                this.CF = (this.src & 0x01) > 0;
+                                this.CF = Boolean(this.src & 0x01);
                                 this.src = this.src >> 1 | (+this.tmpB) << 7;
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
+                                // 4.save data
                                 this.memory[this.addr] = this.src;
                             }
                             /* ADC 8bit */
                             else if (this.oc == 0x65) {
-                                // 1.零页寻址
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [adc]
+                                // 2.execute instruction
                                 this.src = this.memory[this.addr];
                                 this.dst = (this.A + this.src) + (+this.CF);
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst > 0xFF;
                                 this.dst &= 0xFF; // [fixed]
-                                this.VF = (0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst)) > 0;
+                                this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
-                                this.NF = (this.A & 0x80) > 0;
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             else {
@@ -2812,31 +2811,31 @@ var anes;
                             }
                             /* ADC (8bit,X) */
                             else if (this.oc == 0x61) {
-                                // 1.先零页X变址后间址寻址
+                                // 1.Zero Page Indexed Indirect Addressing,X
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.memory[(this.l_or + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_or + this.X & 0xFF];
-                                // 2.Exec instruction [adc]
-                                this.src = this.r1(this.addr);
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
                                 this.dst = (this.A + this.src) + (+this.CF);
-                                // 3.Update flags
+                                // 3.update flags
                                 this.CF = this.dst > 0xFF;
                                 this.dst &= 0xFF; // [fixed]
-                                this.VF = (0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst)) > 0;
+                                this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
-                                this.NF = (this.A & 0x80) > 0;
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* RTS */
-                            else { /*0x60*/
-                                // 1.栈寻址
+                            else /*0x60*/ {
+                                // 1.Implied Addressing
                                 this.S += 1;
                                 this.S &= 0xFF; // [fixed]
                                 this.l_addr = this.memory[0x0100 + this.S];
                                 this.S += 1;
                                 this.S &= 0xFF; // [fixed]
                                 this.u_addr = this.memory[0x0100 + this.S];
-                                // 2.Exec instruction [rts]
+                                // 2.execute instruction
                                 this.addr = this.u_addr << 8 | this.l_addr;
                                 this.PC = this.addr + 1;
                             }
@@ -2849,36 +2848,36 @@ var anes;
                             }
                             /* LSR 16bit,X */
                             else if (this.oc == 0x5E) {
-                                // 1.绝对X变址寻址
+                                // 1.Absolute X Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
-                                // 2.Exec instruction [lsr]
-                                this.src = this.r1(this.addr);
-                                this.CF = (this.src & 0x01) > 0;
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
+                                this.CF = Boolean(this.src & 0x01);
                                 this.src >>= 1;
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
-                                this.w1(this.addr, this.src);
+                                // 4.save data
+                                this.w(this.addr, this.src);
                             }
                             /* EOR 16bit,X */
                             else if (this.oc == 0x5D) {
-                                // 1.绝对X变址寻址
+                                // 1.Absolute X Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
-                                // 2.Exec instruction [eor]
-                                this.A ^= this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A ^= this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
@@ -2893,24 +2892,24 @@ var anes;
                             }
                             /* EOR 16bit,Y */
                             else if (this.oc == 0x59) {
-                                // 1.绝对Y变址寻址
+                                // 1.Absolute Y Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.Y;
-                                // 2.Exec instruction [eor]
-                                this.A ^= this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A ^= this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
                             }
                             /* CLI */
-                            else { /*0x58*/
-                                // 2.Exec instruction 
+                            else /*0x58*/ {
+                                // 2.execute instruction
                                 this.IF = false;
                             }
                         }
@@ -2919,28 +2918,28 @@ var anes;
                             }
                             /* LSR 8bit,X */
                             else if (this.oc == 0x56) {
-                                // 1.零页X变址寻址
+                                // 1.Zero-page X Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.X & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [lsr]
+                                // 2.execute instruction
                                 this.src = this.memory[this.addr];
-                                this.CF = (this.src & 0x01) > 0;
+                                this.CF = Boolean(this.src & 0x01);
                                 this.src >>= 1;
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
+                                // 4.save data
                                 this.memory[this.addr] = this.src;
                             }
                             /* EOR 8bit,X */
                             else if (this.oc == 0x55) {
-                                // 1.零页X变址寻址
+                                // 1.Zero-page X Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.X & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [eor]
+                                // 2.execute instruction
                                 this.A ^= this.memory[this.addr];
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             else {
@@ -2953,28 +2952,28 @@ var anes;
                             }
                             /* EOR (8bit),Y */
                             else if (this.oc == 0x51) {
-                                // 1.先零页间址后Y变址寻址
+                                // 1.Zero Page Indirect Indexed with Y
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
                                 this.addr = this.tmpN + this.Y;
-                                // 2.Exec instruction [eor]
-                                this.A ^= this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A ^= this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
                             }
                             /* BVC #8bit */
-                            else { /*0x50*/
-                                // 1.Immediate Addressing
+                            else /*0x50*/ {
+                                // 1.Relative Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [bvc]
+                                // 2.execute instruction
                                 if (!this.VF) {
                                     this.tmpN = this.PC;
-                                    this.addr = (this.PC + this.l_or) & 0xFFFF;
+                                    this.addr = this.PC + ((this.l_or << 24) >> 24) & 0xFFFF;
                                     this.PC = this.addr;
                                     // 9.sum clock cycles
                                     this.onceExecedCC += 1;
@@ -2990,45 +2989,45 @@ var anes;
                             }
                             /* LSR 16bit */
                             else if (this.oc == 0x4E) {
-                                // 1.绝对寻址
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [lsr]
-                                this.src = this.r1(this.addr);
-                                this.CF = (this.src & 0x01) > 0;
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
+                                this.CF = Boolean(this.src & 0x01);
                                 this.src >>= 1;
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
-                                this.w1(this.addr, this.src);
+                                // 4.save data
+                                this.w(this.addr, this.src);
                             }
                             /* EOR 16bit */
                             else if (this.oc == 0x4D) {
-                                // 1.绝对寻址
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [eor]
-                                this.A ^= this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A ^= this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* JMP 16bit */
-                            else { /*0x4C*/
-                                // 1.绝对寻址
+                            else /*0x4C*/ {
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [jmp]
+                                // 2.execute instruction
                                 this.PC = this.addr;
                             }
                         }
@@ -3037,12 +3036,12 @@ var anes;
                             }
                             /* LSR */
                             else if (this.oc == 0x4A) {
-                                // 2.Exec instruction [lsr]
-                                this.CF = (this.A & 0x01) > 0;
+                                // 2.execute instruction
+                                this.CF = Boolean(this.A & 0x01);
                                 this.A >>= 1;
                                 this.A &= 0xFF; // [fixed]
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* EOR #8bit */
@@ -3050,18 +3049,18 @@ var anes;
                                 // 1.Immediate Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [eor]
+                                // 2.execute instruction
                                 this.A ^= this.l_or;
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* PHA */
-                            else { /*0x48*/
-                                // 2.Exec instruction [pha]
+                            else /*0x48*/ {
+                                // 2.execute instruction
                                 this.addr = 0x0100 + this.S;
                                 this.src = this.A;
-                                this.w1(this.addr, this.src);
+                                this.w(this.addr, this.src);
                                 this.S -= 1;
                                 this.S &= 0xFF; // [fixed]
                             }
@@ -3071,28 +3070,28 @@ var anes;
                             }
                             /* LSR 8bit */
                             else if (this.oc == 0x46) {
-                                // 1.零页寻址
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [lsr]
+                                // 2.execute instruction
                                 this.src = this.memory[this.addr];
-                                this.CF = (this.src & 0x01) > 0;
+                                this.CF = Boolean(this.src & 0x01);
                                 this.src >>= 1;
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
+                                // 4.save data
                                 this.memory[this.addr] = this.src;
                             }
                             /* EOR 8bit */
                             else if (this.oc == 0x45) {
-                                // 1.零页寻址
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [eor]
+                                // 2.execute instruction
                                 this.A ^= this.memory[this.addr];
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             else {
@@ -3105,31 +3104,31 @@ var anes;
                             }
                             /* EOR (8bit,X) */
                             else if (this.oc == 0x41) {
-                                // 1.先零页X变址后间址寻址
+                                // 1.Zero Page Indexed Indirect Addressing,X
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.memory[(this.l_or + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_or + this.X & 0xFF];
-                                // 2.Exec instruction [eor]
-                                this.A ^= this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A ^= this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* RTI */
-                            else { /*0x40*/
-                                // 栈还原
+                            else /*0x40*/ {
+                                // restore stack
                                 this.S += 1;
                                 this.S &= 0xFF; // [fixed]
                                 this.P = this.memory[0x0100 + this.S];
-                                this.NF = (this.P & 0x80) > 0;
-                                this.VF = (this.P & 0x40) > 0;
+                                this.NF = Boolean(this.P & 0x80);
+                                this.VF = Boolean(this.P & 0x40);
                                 this.RF = true;
-                                this.BF = (this.P & 0x10) > 0;
-                                this.DF = (this.P & 0x08) > 0;
-                                this.IF = (this.P & 0x04) > 0;
-                                this.ZF = (this.P & 0x02) > 0;
-                                this.CF = (this.P & 0x01) > 0;
-                                // 栈寻址
+                                this.BF = Boolean(this.P & 0x10);
+                                this.DF = Boolean(this.P & 0x08);
+                                this.IF = Boolean(this.P & 0x04);
+                                this.ZF = Boolean(this.P & 0x02);
+                                this.CF = Boolean(this.P & 0x01);
+                                // stack addressing
                                 this.S += 1;
                                 this.S &= 0xFF; // [fixed]
                                 this.l_addr = this.memory[0x0100 + this.S];
@@ -3150,38 +3149,38 @@ var anes;
                             }
                             /* ROL 16bit,X */
                             else if (this.oc == 0x3E) {
-                                // 1.绝对X变址寻址
+                                // 1.Absolute X Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
-                                // 2.Exec instruction [rol]
-                                this.src = this.r1(this.addr);
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
                                 this.tmpB = this.CF;
-                                this.CF = (this.src & 0x80) > 0;
+                                this.CF = Boolean(this.src & 0x80);
                                 this.src = this.src << 1 | (+this.tmpB);
                                 this.src &= 0xFF; // [fixed]
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
-                                this.w1(this.addr, this.src);
+                                // 4.save data
+                                this.w(this.addr, this.src);
                             }
                             /* AND 16bit,X */
                             else if (this.oc == 0x3D) {
-                                // 1.绝对X变址寻址
+                                // 1.Absolute X Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
-                                // 2.Exec instruction [and]
-                                this.A &= this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A &= this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
@@ -3196,24 +3195,24 @@ var anes;
                             }
                             /* AND 16bit,Y */
                             else if (this.oc == 0x39) {
-                                // 1.绝对Y变址寻址
+                                // 1.Absolute Y Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.Y;
-                                // 2.Exec instruction [and]
-                                this.A &= this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A &= this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
                             }
                             /* SEC */
-                            else { /*0x38*/
-                                // 2.Exec instruction [sec]
+                            else /*0x38*/ {
+                                // 2.execute instruction
                                 this.CF = true;
                             }
                         }
@@ -3222,30 +3221,30 @@ var anes;
                             }
                             /* ROL 8bit,X */
                             else if (this.oc == 0x36) {
-                                // 1.零页X变址寻址
+                                // 1.Zero-page X Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.X & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [rol]
+                                // 2.execute instruction
                                 this.src = this.memory[this.addr];
                                 this.tmpB = this.CF;
-                                this.CF = (this.src & 0x80) > 0;
+                                this.CF = Boolean(this.src & 0x80);
                                 this.src = this.src << 1 | (+this.tmpB);
                                 this.src &= 0xFF; // [fixed]
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
+                                // 4.save data
                                 this.memory[this.addr] = this.src;
                             }
                             /* AND 8bit,X */
                             else if (this.oc == 0x35) {
-                                // 1.零页X变址寻址
+                                // 1.Zero-page X Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.X & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [and]
+                                // 2.execute instruction
                                 this.A &= this.memory[this.addr];
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             else {
@@ -3258,28 +3257,28 @@ var anes;
                             }
                             /* AND (8bit),Y */
                             else if (this.oc == 0x31) {
-                                // 1.先零页间址后Y变址寻址
+                                // 1.Zero Page Indirect Indexed with Y
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
                                 this.addr = this.tmpN + this.Y;
-                                // 2.Exec instruction [and]
-                                this.A &= this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A &= this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
                             }
                             /* BMI #8bit */
-                            else { /*0x30*/
-                                // 1.Immediate Addressing
+                            else /*0x30*/ {
+                                // 1.Relative Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [bmi]
+                                // 2.execute instruction
                                 if (this.NF) {
                                     this.tmpN = this.PC;
-                                    this.addr = (this.PC + this.l_or) & 0xFFFF;
+                                    this.addr = this.PC + ((this.l_or << 24) >> 24) & 0xFFFF;
                                     this.PC = this.addr;
                                     // 9.sum clock cycles
                                     this.onceExecedCC += 1;
@@ -3295,51 +3294,51 @@ var anes;
                             }
                             /* ROL 16bit */
                             else if (this.oc == 0x2E) {
-                                // 1.绝对寻址
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [rol]
-                                this.src = this.r1(this.addr);
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
                                 this.tmpB = this.CF;
-                                this.CF = (this.src & 0x80) > 0;
+                                this.CF = Boolean(this.src & 0x80);
                                 this.src = this.src << 1 | (+this.tmpB);
                                 this.src &= 0xFF; // [fixed]
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
-                                this.w1(this.addr, this.src);
+                                // 4.save data
+                                this.w(this.addr, this.src);
                             }
                             /* AND 16bit */
                             else if (this.oc == 0x2D) {
-                                // 1.绝对寻址
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [and]
-                                this.A &= this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A &= this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* BIT 16bit */
-                            else { /*0x2C*/
-                                // 1.绝对寻址
+                            else /*0x2C*/ {
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [bit]
-                                this.src = this.r1(this.addr);
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
                                 this.ZF = !(this.src & this.A);
-                                this.NF = (this.src & 0x80) > 0;
-                                this.VF = (this.src & 0x40) > 0;
+                                this.NF = Boolean(this.src & 0x80);
+                                this.VF = Boolean(this.src & 0x40);
                             }
                         }
                         else if (this.oc >= 0x28) {
@@ -3347,13 +3346,13 @@ var anes;
                             }
                             /* ROL */
                             else if (this.oc == 0x2A) {
-                                // 2.Exec instruction [rol]
+                                // 2.execute instruction
                                 this.tmpB = this.CF;
-                                this.CF = (this.A & 0x80) > 0;
+                                this.CF = Boolean(this.A & 0x80);
                                 this.A = this.A << 1 | (+this.tmpB);
                                 this.A &= 0xFF; // [fixed]
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* AND #8bit */
@@ -3361,26 +3360,26 @@ var anes;
                                 // 1.Immediate Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [and]
+                                // 2.execute instruction
                                 this.A &= this.l_or;
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* PLP */
-                            else { /*0x28*/
-                                // 2.Exec instruction [plp]
+                            else /*0x28*/ {
+                                // 2.execute instruction
                                 this.S += 1;
                                 this.S &= 0xFF; // [fixed]
                                 this.P = this.memory[0x0100 + this.S];
-                                this.NF = (this.P & 0x80) > 0;
-                                this.VF = (this.P & 0x40) > 0;
+                                this.NF = Boolean(this.P & 0x80);
+                                this.VF = Boolean(this.P & 0x40);
                                 this.RF = true;
-                                this.BF = (this.P & 0x10) > 0;
-                                this.DF = (this.P & 0x08) > 0;
-                                this.IF = (this.P & 0x04) > 0;
-                                this.ZF = (this.P & 0x02) > 0;
-                                this.CF = (this.P & 0x01) > 0;
+                                this.BF = Boolean(this.P & 0x10);
+                                this.DF = Boolean(this.P & 0x08);
+                                this.IF = Boolean(this.P & 0x04);
+                                this.ZF = Boolean(this.P & 0x02);
+                                this.CF = Boolean(this.P & 0x01);
                             }
                         }
                         else if (this.oc >= 0x24) {
@@ -3388,42 +3387,42 @@ var anes;
                             }
                             /* ROL 8bit */
                             else if (this.oc == 0x26) {
-                                // 1.零页寻址
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [rol]
+                                // 2.execute instruction
                                 this.src = this.memory[this.addr];
                                 this.tmpB = this.CF;
-                                this.CF = (this.src & 0x80) > 0;
+                                this.CF = Boolean(this.src & 0x80);
                                 this.src = this.src << 1 | (+this.tmpB);
                                 this.src &= 0xFF; // [fixed]
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
+                                // 4.save data
                                 this.memory[this.addr] = this.src;
                             }
                             /* AND 8bit */
                             else if (this.oc == 0x25) {
-                                // 1.零页寻址
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [and]
+                                // 2.execute instruction
                                 this.A &= this.memory[this.addr];
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* BIT 8bit */
-                            else { /*0x24*/
-                                // 1.零页寻址
+                            else /*0x24*/ {
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [bit]
+                                // 2.execute instruction
                                 this.src = this.memory[this.addr];
                                 this.ZF = !(this.src & this.A);
-                                this.NF = (this.src & 0x80) > 0;
-                                this.VF = (this.src & 0x40) > 0;
+                                this.NF = Boolean(this.src & 0x80);
+                                this.VF = Boolean(this.src & 0x40);
                             }
                         }
                         else {
@@ -3433,26 +3432,26 @@ var anes;
                             }
                             /* AND (8bit,X) */
                             else if (this.oc == 0x21) {
-                                // 1.先零页X变址后间址寻址
+                                // 1.Zero Page Indexed Indirect Addressing,X
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.memory[(this.l_or + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_or + this.X & 0xFF];
-                                // 2.Exec instruction [and]
-                                this.A &= this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A &= this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* JSR 16bit */
-                            else { /*0x20*/
-                                // 1.绝对寻址
+                            else /*0x20*/ {
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [jsr]
-                                this.PC -= 1; // 跳回来一下
+                                // 2.execute instruction
+                                this.PC -= 1; // jump back
                                 this.memory[0x0100 + this.S] = this.PC >> 8;
                                 this.S -= 1;
                                 this.S &= 0xFF; // [fixed]
@@ -3470,37 +3469,37 @@ var anes;
                             }
                             /* ASL 16bit,X */
                             else if (this.oc == 0x1E) {
-                                // 1.绝对X变址寻址
+                                // 1.Absolute X Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
-                                // 2.Exec instruction [asl]
-                                this.src = this.r1(this.addr);
-                                this.CF = (this.src & 0x80) > 0;
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
+                                this.CF = Boolean(this.src & 0x80);
                                 this.src <<= 1;
                                 this.src &= 0xFF; // [fixed]
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
-                                this.w1(this.addr, this.src);
+                                // 4.save data
+                                this.w(this.addr, this.src);
                             }
                             /* ORA 16bit,X */
                             else if (this.oc == 0x1D) {
-                                // 1.绝对X变址寻址
+                                // 1.Absolute X Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
-                                // 2.Exec instruction [ora]
-                                this.A |= this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A |= this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
@@ -3515,24 +3514,24 @@ var anes;
                             }
                             /* ORA 16bit,Y */
                             else if (this.oc == 0x19) {
-                                // 1.绝对Y变址寻址
+                                // 1.Absolute Y Indexed Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.Y;
-                                // 2.Exec instruction [ora]
-                                this.A |= this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A |= this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
                             }
                             /* CLC */
-                            else { /*0x18*/
-                                // 2.Exec instruction [cls]
+                            else /*0x18*/ {
+                                // 2.execute instruction
                                 this.CF = false;
                             }
                         }
@@ -3541,29 +3540,29 @@ var anes;
                             }
                             /* ASL 8bit,X */
                             else if (this.oc == 0x16) {
-                                // 1.零页X变址寻址
+                                // 1.Zero-page X Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.X & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [asl]
+                                // 2.execute instruction
                                 this.src = this.memory[this.addr];
-                                this.CF = (this.src & 0x80) > 0;
+                                this.CF = Boolean(this.src & 0x80);
                                 this.src <<= 1;
                                 this.src &= 0xFF; // [fixed]
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
+                                // 4.save data
                                 this.memory[this.addr] = this.src;
                             }
                             /* ORA 8bit,X */
                             else if (this.oc == 0x15) {
-                                // 1.零页X变址寻址
+                                // 1.Zero-page X Indexed Addressing
                                 this.addr = this.memory[this.PC] + this.X & 0xFF;
                                 this.PC += 1;
-                                // 2.Exec instruction [ora]
+                                // 2.execute instruction
                                 this.A |= this.memory[this.addr];
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             else {
@@ -3576,28 +3575,28 @@ var anes;
                             }
                             /* ORA (8bit),Y */
                             else if (this.oc == 0x11) {
-                                // 1.先零页间址后Y变址寻址
+                                // 1.Zero Page Indirect Indexed with Y
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
                                 this.addr = this.tmpN + this.Y;
-                                // 2.Exec instruction [ora]
-                                this.A |= this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A |= this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
                             }
                             /* BPL #8bit */
-                            else { /*0x10*/
-                                // 1.Immediate Addressing
+                            else /*0x10*/ {
+                                // 1.Relative Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [bpl]
+                                // 2.execute instruction
                                 if (!this.NF) {
                                     this.tmpN = this.PC;
-                                    this.addr = (this.PC + this.l_or) & 0xFFFF;
+                                    this.addr = this.PC + ((this.l_or << 24) >> 24) & 0xFFFF;
                                     this.PC = this.addr;
                                     // 9.sum clock cycles
                                     this.onceExecedCC += 1;
@@ -3613,35 +3612,35 @@ var anes;
                             }
                             /* ASL 16bit */
                             else if (this.oc == 0x0E) {
-                                // 1.绝对寻址
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [asl]
-                                this.src = this.r1(this.addr);
-                                this.CF = (this.src & 0x80) > 0;
+                                // 2.execute instruction
+                                this.src = this.r(this.addr);
+                                this.CF = Boolean(this.src & 0x80);
                                 this.src <<= 1;
                                 this.src &= 0xFF; // [fixed]
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
-                                this.w1(this.addr, this.src);
+                                // 4.save data
+                                this.w(this.addr, this.src);
                             }
                             /* ORA 16bit */
                             else if (this.oc == 0x0D) {
-                                // 1.绝对寻址
+                                // 1.Absolute Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
-                                // 2.Exec instruction [ora]
-                                this.A |= this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A |= this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             else {
@@ -3652,12 +3651,12 @@ var anes;
                             }
                             /* ASL */
                             else if (this.oc == 0x0A) {
-                                // 2.Exec instruction [asl]
-                                this.CF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.CF = Boolean(this.A & 0x80);
                                 this.A <<= 1;
                                 this.A &= 0xFF; // [fixed]
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* ORA #8bit */
@@ -3665,16 +3664,16 @@ var anes;
                                 // 1.Immediate Addressing
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [ora]
+                                // 2.execute instruction
                                 this.A |= this.l_or;
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* PHP */
                             else {
-                                // 2.Exec instruction [php]
-                                this.P = (+this.NF) << 7 | (+this.VF) << 6 | (+this.RF) << 5 | (+this.BF) << 4 | (+this.DF) << 3 | (+this.IF) << 2 | +(this.ZF) << 1 | (+this.CF);
+                                // 2.execute instruction
+                                this.P = (+this.NF) << 7 | (+this.VF) << 6 | (+this.RF) << 5 | (+this.BF) << 4 | (+this.DF) << 3 | (+this.IF) << 2 | (+this.ZF) << 1 | (+this.CF);
                                 this.memory[0x0100 + this.S] = this.P;
                                 this.S -= 1;
                                 this.S &= 0xFF; // [fixed]
@@ -3685,29 +3684,29 @@ var anes;
                             }
                             /* ASL 8bit */
                             else if (this.oc == 0x06) {
-                                // 1.零页寻址
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [asl]
+                                // 2.execute instruction
                                 this.src = this.memory[this.addr];
-                                this.CF = (this.src & 0x80) > 0;
+                                this.CF = Boolean(this.src & 0x80);
                                 this.src <<= 1;
                                 this.src &= 0xFF; // [fixed]
-                                // 3.Update flags
-                                this.NF = (this.src & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.src & 0x80);
                                 this.ZF = !this.src;
-                                // 4.save data to momery
+                                // 4.save data
                                 this.memory[this.addr] = this.src;
                             }
                             /* ORA 8bit */
                             else if (this.oc == 0x05) {
-                                // 1.零页寻址
+                                // 1.Zero Page Addressing
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
-                                // 2.Exec instruction [ora]
+                                // 2.execute instruction
                                 this.A |= this.memory[this.addr];
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             else {
@@ -3720,19 +3719,19 @@ var anes;
                             }
                             /* ORA (8bit,X) */
                             else if (this.oc == 0x01) {
-                                // 1.先零页X变址后间址寻址
+                                // 1.Zero Page Indexed Indirect Addressing,X
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.addr = this.memory[(this.l_or + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_or + this.X & 0xFF];
-                                // 2.Exec instruction [ora]
-                                this.A |= this.r1(this.addr);
-                                // 3.Update flags
-                                this.NF = (this.A & 0x80) > 0;
+                                // 2.execute instruction
+                                this.A |= this.r(this.addr);
+                                // 3.update flags
+                                this.NF = Boolean(this.A & 0x80);
                                 this.ZF = !this.A;
                             }
                             /* BRK(软中断) */
-                            else { /*0x00*/
-                                // 步骤1 - stack <- PC + 2
+                            else /*0x00*/ {
+                                // step 1 - stack <- PC + 2
                                 this.PC += 1;
                                 this.memory[0x0100 + this.S] = this.PC >> 8;
                                 this.S -= 1;
@@ -3740,32 +3739,32 @@ var anes;
                                 this.memory[0x0100 + this.S] = this.PC & 0xFF;
                                 this.S -= 1;
                                 this.S &= 0xFF; // [fixed]
-                                // 步骤2
+                                // step 2
                                 this.BF = true;
-                                // 步骤3 - stack <- P
+                                // step 3 - stack <- P
                                 this.P = (+this.NF) << 7 | (+this.VF) << 6 | (+this.RF) << 5 | (+this.BF) << 4 | (+this.DF) << 3 | (+this.IF) << 2 | (+this.ZF) << 1 | (+this.CF);
                                 this.memory[0x0100 + this.S] = this.P;
                                 this.S -= 1;
                                 this.S &= 0xFF; // [fixed]
-                                // 步骤4
+                                // step 4
                                 this.IF = true;
-                                // 步骤5
+                                // step 5
                                 this.PC = this.memory[0xFFFF] << 8 | this.memory[0xFFFE];
                             }
                         }
                     }
                 }
-                // get clock cycles of current instruction(获取当前指令的时钟频率)
+                // get clock cycles of current instruction
                 var cycles = this.cycleList[this.oc];
                 if (cycles == 0) {
                     console.log('Invalid instruction:', this.oc.toString(16), this.lastPC.toString(16));
                     this.onceExecedCC += 2;
                     return false;
                 }
-                // sum clock cycles of executed(累积已执行的指令时钟频率)
+                // sum clock cycles of executed
                 this.onceExecedCC += cycles;
                 this.execedCC += cycles;
-                // execute interrupt(执行中断)
+                // execute interrupt
                 if (this.bus.ppu.ENC) {
                     this.bus.ppu.ENC -= cycles; // pass 7 clock cycle
                     if (this.bus.ppu.ENC <= 0) {
@@ -3773,9 +3772,9 @@ var anes;
                         this.bus.ppu.ENC = 0;
                     }
                 }
-                // if execute finish(执行到目标时钟频率)
+                // Whether it meets the requirements of CC
                 if (this.onceExecedCC >= requiredCC) {
-                    // 渲染声音
+                    // reander sound
                     this.bus.apu.virtualUpdateDPCM(this.onceExecedCC);
                     return true;
                 }
@@ -3811,7 +3810,7 @@ var anes;
         /**
          * Read data.
          */
-        Joypad.prototype.r5 = function (dev) {
+        Joypad.prototype.r = function (dev) {
             var data;
             if (dev == 0) {
                 data = this.dev0 >> this.dev0_nShift & 0x1;
@@ -3828,7 +3827,7 @@ var anes;
         /**
          * Write data.
          */
-        Joypad.prototype.w5 = function (data) {
+        Joypad.prototype.w = function (data) {
             if (data & 0x1 && this.bStrobe == false) {
                 this.bStrobe = true;
             }
@@ -4939,7 +4938,7 @@ var anes;
         /**
          * Read data.
          */
-        PPU.prototype.r2 = function (address) {
+        PPU.prototype.r = function (address) {
             var value = 0;
             if (address == 0x2002) // PPU status
              {
