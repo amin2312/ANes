@@ -244,16 +244,20 @@ namespace anes
 			for (; ;)
 			{
 				this.oc = this.memory[this.PC16];
-				if (this._ii >= 16000 && this._ii <= 17000)
+				/*
+				if (this._ii >= 100000 && this._ii <= 10000000)
 				{
-					console.log(this._ii, this.oc, this.Y);
+					if (this._ii % 100000 == 0)
+					{
+						console.log(this._ii, this.oc, this.Y, this.X, this.A);
+					}
 				}
-				if (this._ii == 16273)
+				if (this._ii == 305821)
 				{
 					debugger;
 				}
 				this._ii++;
-
+				*/
 				this.lastPC = this.PC16;
 				this.PC16 += 1;
 				if (this.oc >= 0xC0)
@@ -288,9 +292,10 @@ namespace anes
 								this.base16 = this.u_op << 8 | this.l_op; this.addr16 = this.base16 + this.X & 0xFFFF;
 								// 2.execute instruction
 								this.srcV = this.r(this.addr16);
-								this.dstV = (this.A - this.srcV & 0xFF) - (+!this.CF) & 0xFF;
+								this.dstV = (this.A - this.srcV & 0xFFF) - (+!this.CF) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.VF = (0x80 & (this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
 								this.A = this.dstV;
 								this.NF = (this.A & 0x80) > 0;
@@ -319,9 +324,10 @@ namespace anes
 								this.base16 = this.u_op << 8 | this.l_op; this.addr16 = this.base16 + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.srcV = this.r(this.addr16);
-								this.dstV = (this.A - this.srcV & 0xFF) - (+!this.CF) & 0xFF;
+								this.dstV = (this.A - this.srcV & 0xFFF) - (+!this.CF) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.VF = (0x80 & (this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
 								this.A = this.dstV;
 								this.NF = (this.A & 0x80) > 0;
@@ -361,9 +367,10 @@ namespace anes
 								this.addr16 = this.memory[this.PC16] + this.X & 0xFF; this.PC16 += 1;
 								// 2.execute instruction
 								this.srcV = this.memory[this.addr16];
-								this.dstV = (this.A - this.srcV & 0xFF) - (+!this.CF) & 0xFF;
+								this.dstV = (this.A - this.srcV & 0xFFF) - (+!this.CF) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.VF = (0x80 & (this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
 								this.A = this.dstV;
 								this.NF = (this.A & 0x80) > 0;
@@ -390,9 +397,10 @@ namespace anes
 								this.base16 = this.memory[this.l_op + 1 & 0xFF] << 8 | this.memory[this.l_op]; this.addr16 = this.base16 + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.srcV = this.r(this.addr16);
-								this.dstV = (this.A - this.srcV & 0xFF) - (+!this.CF) & 0xFF;
+								this.dstV = (this.A - this.srcV & 0xFFF) - (+!this.CF) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.VF = (0x80 & (this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
 								this.A = this.dstV;
 								this.NF = (this.A & 0x80) > 0;
@@ -446,9 +454,10 @@ namespace anes
 								this.l_op = this.memory[this.PC16]; this.PC16 += 1; this.u_op = this.memory[this.PC16]; this.PC16 += 1; this.addr16 = this.u_op << 8 | this.l_op;
 								// 2.execute instruction
 								this.srcV = this.r(this.addr16);
-								this.dstV = (this.A - this.srcV & 0xFF) - (+!this.CF) & 0xFF;
+								this.dstV = (this.A - this.srcV & 0xFFF) - (+!this.CF) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.VF = (0x80 & (this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
 								this.A = this.dstV;
 								this.NF = (this.A & 0x80) > 0;
@@ -460,9 +469,10 @@ namespace anes
 								// 1.Absolute Addressing
 								this.l_op = this.memory[this.PC16]; this.PC16 += 1; this.u_op = this.memory[this.PC16]; this.PC16 += 1; this.addr16 = this.u_op << 8 | this.l_op;
 								// 2.execute instruction
-								this.dstV = this.X - this.r(this.addr16) & 0xFF;
+								this.dstV = this.X - this.r(this.addr16) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.NF = (this.dstV & 0x80) > 0;
 								this.ZF = !this.dstV;
 							}
@@ -483,9 +493,10 @@ namespace anes
 								this.l_op = this.memory[this.PC16]; this.PC16 += 1;
 								// 2.execute instruction
 								this.srcV = this.l_op;
-								this.dstV = (this.A - this.srcV & 0xFF) - (+!this.CF) & 0xFF;
+								this.dstV = (this.A - this.srcV & 0xFFF) - (+!this.CF) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.VF = (0x80 & (this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
 								this.A = this.dstV;
 								this.NF = (this.A & 0x80) > 0;
@@ -526,9 +537,10 @@ namespace anes
 								this.addr16 = this.memory[this.PC16]; this.PC16 += 1;
 								// 2.execute instruction
 								this.srcV = this.memory[this.addr16];
-								this.dstV = (this.A - this.srcV & 0xFF) - (+!this.CF) & 0xFF;
+								this.dstV = (this.A - this.srcV & 0xFFF) - (+!this.CF) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.VF = (0x80 & (this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
 								this.A = this.dstV;
 								this.NF = (this.A & 0x80) > 0;
@@ -540,9 +552,10 @@ namespace anes
 								// 1.Zero Page Addressing
 								this.addr16 = this.memory[this.PC16]; this.PC16 += 1;
 								// 2.execute instruction
-								this.dstV = this.X - this.memory[this.addr16] & 0xFF;
+								this.dstV = this.X - this.memory[this.addr16] & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.NF = (this.dstV & 0x80) > 0;
 								this.ZF = !this.dstV;
 							}
@@ -563,9 +576,10 @@ namespace anes
 								this.addr16 = this.memory[this.l_op + this.X + 1 & 0xFF] << 8 | this.memory[this.l_op + this.X & 0xFF];
 								// 2.execute instruction
 								this.srcV = this.r(this.addr16);
-								this.dstV = (this.A - this.srcV & 0xFF) - (+!this.CF) & 0xFF;
+								this.dstV = (this.A - this.srcV & 0xFFF) - (+!this.CF) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.VF = (0x80 & (this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
 								this.A = this.dstV;
 								this.NF = (this.A & 0x80) > 0;
@@ -577,9 +591,10 @@ namespace anes
 								// 1.Immediate Addressing
 								this.l_op = this.memory[this.PC16]; this.PC16 += 1;
 								// 2.execute instruction
-								this.dstV = this.X - this.l_op & 0xFF;
+								this.dstV = this.X - this.l_op & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.NF = (this.dstV & 0x80) > 0;
 								this.ZF = !this.dstV;
 							}
@@ -614,9 +629,10 @@ namespace anes
 								this.l_op = this.memory[this.PC16]; this.PC16 += 1; this.u_op = this.memory[this.PC16]; this.PC16 += 1;
 								this.base16 = this.u_op << 8 | this.l_op; this.addr16 = this.base16 + this.X & 0xFFFF;
 								// 2.execute instruction
-								this.dstV = this.A - this.r(this.addr16) & 0xFF;
+								this.dstV = this.A - this.r(this.addr16) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.NF = (this.dstV & 0x80) > 0;
 								this.ZF = !this.dstV;
 								// 9.sum clock cycles
@@ -642,9 +658,10 @@ namespace anes
 								this.l_op = this.memory[this.PC16]; this.PC16 += 1; this.u_op = this.memory[this.PC16]; this.PC16 += 1;
 								this.base16 = this.u_op << 8 | this.l_op; this.addr16 = this.base16 + this.Y & 0xFFFF;
 								// 2.execute instruction
-								this.dstV = this.A - this.r(this.addr16) & 0xFF;
+								this.dstV = this.A - this.r(this.addr16) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.NF = (this.dstV & 0x80) > 0;
 								this.ZF = !this.dstV;
 								// 9.sum clock cycles
@@ -681,9 +698,10 @@ namespace anes
 								// 1.Zero-page X Indexed Addressing
 								this.addr16 = this.memory[this.PC16] + this.X & 0xFF; this.PC16 += 1;
 								// 2.execute instruction
-								this.dstV = this.A - this.memory[this.addr16] & 0xFF;
+								this.dstV = this.A - this.memory[this.addr16] & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.NF = (this.dstV & 0x80) > 0;
 								this.ZF = !this.dstV;
 							}
@@ -707,9 +725,10 @@ namespace anes
 								this.l_op = this.memory[this.PC16]; this.PC16 += 1;
 								this.base16 = this.memory[this.l_op + 1 & 0xFF] << 8 | this.memory[this.l_op]; this.addr16 = this.base16 + this.Y & 0xFFFF;
 								// 2.execute instruction
-								this.dstV = this.A - this.r(this.addr16) & 0xFF;
+								this.dstV = this.A - this.r(this.addr16) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.NF = (this.dstV & 0x80) > 0;
 								this.ZF = !this.dstV;
 								// 9.sum clock cycles
@@ -760,9 +779,10 @@ namespace anes
 								// 1.Absolute Addressing
 								this.l_op = this.memory[this.PC16]; this.PC16 += 1; this.u_op = this.memory[this.PC16]; this.PC16 += 1; this.addr16 = this.u_op << 8 | this.l_op;
 								// 2.execute instruction
-								this.dstV = this.A - this.r(this.addr16) & 0xFF;
+								this.dstV = this.A - this.r(this.addr16) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.NF = (this.dstV & 0x80) > 0;
 								this.ZF = !this.dstV;
 							}
@@ -772,9 +792,10 @@ namespace anes
 								// 1.Absolute Addressing
 								this.l_op = this.memory[this.PC16]; this.PC16 += 1; this.u_op = this.memory[this.PC16]; this.PC16 += 1; this.addr16 = this.u_op << 8 | this.l_op;
 								// 2.execute instruction
-								this.dstV = this.Y - this.r(this.addr16) & 0xFF;
+								this.dstV = this.Y - this.r(this.addr16) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.NF = (this.dstV & 0x80) > 0;
 								this.ZF = !this.dstV;
 							}
@@ -799,9 +820,10 @@ namespace anes
 								// 1.Immediate Addressing
 								this.l_op = this.memory[this.PC16]; this.PC16 += 1;
 								// 2.execute instruction
-								this.dstV = this.A - this.l_op & 0xFF;
+								this.dstV = this.A - this.l_op & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.NF = (this.dstV & 0x80) > 0;
 								this.ZF = !this.dstV;
 							}
@@ -839,9 +861,10 @@ namespace anes
 								// 1.Zero Page Addressing
 								this.addr16 = this.memory[this.PC16]; this.PC16 += 1;
 								// 2.execute instruction
-								this.dstV = this.A - this.memory[this.addr16] & 0xFF;
+								this.dstV = this.A - this.memory[this.addr16] & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.NF = (this.dstV & 0x80) > 0;
 								this.ZF = !this.dstV;
 							}
@@ -851,9 +874,10 @@ namespace anes
 								// 1.Zero Page Addressing
 								this.addr16 = this.memory[this.PC16]; this.PC16 += 1;
 								// 2.execute instruction
-								this.dstV = this.Y - this.memory[this.addr16] & 0xFF;
+								this.dstV = this.Y - this.memory[this.addr16] & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.NF = (this.dstV & 0x80) > 0;
 								this.ZF = !this.dstV;
 							}
@@ -873,9 +897,10 @@ namespace anes
 								this.l_op = this.memory[this.PC16]; this.PC16 += 1;
 								this.addr16 = this.memory[this.l_op + this.X + 1 & 0xFF] << 8 | this.memory[this.l_op + this.X & 0xFF];
 								// 2.execute instruction
-								this.dstV = this.A - this.r(this.addr16) & 0xFF;
+								this.dstV = this.A - this.r(this.addr16) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.NF = (this.dstV & 0x80) > 0;
 								this.ZF = !this.dstV;
 							}
@@ -885,9 +910,10 @@ namespace anes
 								// 1.Immediate Addressing
 								this.l_op = this.memory[this.PC16]; this.PC16 += 1;
 								// 2.execute instruction
-								this.dstV = this.Y - this.l_op & 0xFF;
+								this.dstV = this.Y - this.l_op & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV < 0x100;
+								this.dstV &= 0xFF; // [fixed]
 								this.NF = (this.dstV & 0x80) > 0;
 								this.ZF = !this.dstV;
 							}
@@ -1403,7 +1429,7 @@ namespace anes
 							else /*0x88*/
 							{
 								// 2.execute instruction
-								this.Y = this.Y - 1 & 0xFF; // [fixed]
+								this.Y = this.Y - 1 & 0xFF;
 								// 3.update flags
 								this.NF = (this.Y & 0x80) > 0;
 								this.ZF = !this.Y;
@@ -1501,9 +1527,10 @@ namespace anes
 								this.base16 = this.u_op << 8 | this.l_op; this.addr16 = this.base16 + this.X & 0xFFFF;
 								// 2.execute instruction
 								this.srcV = this.r(this.addr16);
-								this.dstV = (this.A + this.srcV & 0xFF) + (+this.CF) & 0xFF;
+								this.dstV = (this.A + this.srcV & 0xFFF) + (+this.CF) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV > 0xFF;
+								this.dstV &= 0xFF; // [fixed]
 								this.VF = (0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
 								this.A = this.dstV;
 								this.NF = (this.A & 0x80) > 0;
@@ -1531,9 +1558,10 @@ namespace anes
 								this.base16 = this.u_op << 8 | this.l_op; this.addr16 = this.base16 + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.srcV = this.r(this.addr16);
-								this.dstV = (this.A + this.srcV & 0xFF) + (+this.CF) & 0xFF;
+								this.dstV = (this.A + this.srcV & 0xFFF) + (+this.CF) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV > 0xFF;
+								this.dstV &= 0xFF; // [fixed]
 								this.VF = (0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
 								this.A = this.dstV;
 								this.NF = (this.A & 0x80) > 0;
@@ -1576,9 +1604,10 @@ namespace anes
 								this.addr16 = this.memory[this.PC16] + this.X & 0xFF; this.PC16 += 1;
 								// 2.execute instruction
 								this.srcV = this.memory[this.addr16];
-								this.dstV = (this.A + this.srcV & 0xFF) + (+this.CF) & 0xFF;
+								this.dstV = (this.A + this.srcV & 0xFFF) + (+this.CF) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV > 0xFF;
+								this.dstV &= 0xFF; // [fixed]
 								this.VF = (0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
 								this.A = this.dstV;
 								this.NF = (this.A & 0x80) > 0;
@@ -1604,9 +1633,10 @@ namespace anes
 								this.base16 = this.memory[this.l_op + 1 & 0xFF] << 8 | this.memory[this.l_op]; this.addr16 = this.base16 + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.srcV = this.r(this.addr16);
-								this.dstV = (this.A + this.srcV & 0xFF) + (+this.CF) & 0xFF;
+								this.dstV = (this.A + this.srcV & 0xFFF) + (+this.CF) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV > 0xFF;
+								this.dstV &= 0xFF; // [fixed]
 								this.VF = (0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
 								this.A = this.dstV;
 								this.NF = (this.A & 0x80) > 0;
@@ -1663,9 +1693,10 @@ namespace anes
 								this.l_op = this.memory[this.PC16]; this.PC16 += 1; this.u_op = this.memory[this.PC16]; this.PC16 += 1; this.addr16 = this.u_op << 8 | this.l_op;
 								// 2.execute instruction
 								this.srcV = this.r(this.addr16);
-								this.dstV = (this.A + this.srcV & 0xFF) + (+this.CF) & 0xFF;
+								this.dstV = (this.A + this.srcV & 0xFFF) + (+this.CF) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV > 0xFF;
+								this.dstV &= 0xFF; // [fixed]
 								this.VF = (0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
 								this.A = this.dstV;
 								this.NF = (this.A & 0x80) > 0;
@@ -1707,9 +1738,10 @@ namespace anes
 								this.l_op = this.memory[this.PC16]; this.PC16 += 1;
 								// 2.execute instruction
 								this.srcV = this.l_op;
-								this.dstV = (this.A + this.srcV & 0xFF) + (+this.CF) & 0xFF;
+								this.dstV = (this.A + this.srcV & 0xFFF) + (+this.CF) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV > 0xFF;
+								this.dstV &= 0xFF; // [fixed]
 								this.VF = (0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
 								this.A = this.dstV;
 								this.NF = (this.A & 0x80) > 0;
@@ -1755,9 +1787,10 @@ namespace anes
 								this.addr16 = this.memory[this.PC16]; this.PC16 += 1;
 								// 2.execute instruction
 								this.srcV = this.memory[this.addr16];
-								this.dstV = (this.A + this.srcV & 0xFF) + (+this.CF) & 0xFF;
+								this.dstV = (this.A + this.srcV & 0xFFF) + (+this.CF) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV > 0xFF;
+								this.dstV &= 0xFF; // [fixed]
 								this.VF = (0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
 								this.A = this.dstV;
 								this.NF = (this.A & 0x80) > 0;
@@ -1783,9 +1816,10 @@ namespace anes
 								this.addr16 = this.memory[this.l_op + this.X + 1 & 0xFF] << 8 | this.memory[this.l_op + this.X & 0xFF];
 								// 2.execute instruction
 								this.srcV = this.r(this.addr16);
-								this.dstV = (this.A + this.srcV & 0xFF) + (+this.CF) & 0xFF;
+								this.dstV = (this.A + this.srcV & 0xFFF) + (+this.CF) & 0xFFF;
 								// 3.update flags
 								this.CF = this.dstV > 0xFF;
+								this.dstV &= 0xFF; // [fixed]
 								this.VF = (0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
 								this.A = this.dstV;
 								this.NF = (this.A & 0x80) > 0;

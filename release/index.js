@@ -104,9 +104,9 @@ var ANesEmu = /** @class */ (function () {
         this._rom = bytes;
         // init TV
         var canvas = document.getElementById('myCanvas');
-        var ctx = canvas.getContext('2d');
+        this._ctx = canvas.getContext('2d');
         this.TV = canvas;
-        this.TVD = ctx.createImageData(canvas.width, canvas.height);
+        this.TVD = this._ctx.createImageData(canvas.width, canvas.height);
         // replay game
         this.replay();
     };
@@ -133,10 +133,8 @@ var ANesEmu = /** @class */ (function () {
         if (this._stats != null) {
             this._stats.begin();
         }
-        window.requestAnimationFrame(this.onFrame.bind(this));
         if (this.TV != null && this.TVD != null) {
-            var ctx = this.TV.getContext('2d');
-            ctx.putImageData(this.TVD, 0, 0);
+            this._ctx.putImageData(this.TVD, 0, 0);
         }
         if (this.vm != null) {
             this.vm.onFrame();
@@ -144,6 +142,7 @@ var ANesEmu = /** @class */ (function () {
         if (this._stats != null) {
             this._stats.end();
         }
+        window.requestAnimationFrame(this.onFrame.bind(this));
     };
     /**
      * Show performance.
@@ -1299,13 +1298,20 @@ var anes;
         CPU.prototype.exec = function (requiredCC) {
             for (;;) {
                 this.oc = this.memory[this.PC16];
-                if (this._ii >= 16000 && this._ii <= 17000) {
-                    console.log(this._ii, this.oc, this.Y);
+                /*
+                if (this._ii >= 100000 && this._ii <= 10000000)
+                {
+                    if (this._ii % 100000 == 0)
+                    {
+                        console.log(this._ii, this.oc, this.Y, this.X, this.A);
+                    }
                 }
-                if (this._ii == 16273) {
+                if (this._ii == 305821)
+                {
                     debugger;
                 }
                 this._ii++;
+                */
                 this.lastPC = this.PC16;
                 this.PC16 += 1;
                 if (this.oc >= 0xC0) {
@@ -1342,9 +1348,10 @@ var anes;
                                 this.addr16 = this.base16 + this.X & 0xFFFF;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
-                                this.dstV = (this.A - this.srcV & 0xFF) - (+!this.CF) & 0xFF;
+                                this.dstV = (this.A - this.srcV & 0xFFF) - (+!this.CF) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
+                                this.dstV &= 0xFF; // [fixed]
                                 this.VF = (0x80 & (this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
                                 this.A = this.dstV;
                                 this.NF = (this.A & 0x80) > 0;
@@ -1372,9 +1379,10 @@ var anes;
                                 this.addr16 = this.base16 + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
-                                this.dstV = (this.A - this.srcV & 0xFF) - (+!this.CF) & 0xFF;
+                                this.dstV = (this.A - this.srcV & 0xFFF) - (+!this.CF) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
+                                this.dstV &= 0xFF; // [fixed]
                                 this.VF = (0x80 & (this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
                                 this.A = this.dstV;
                                 this.NF = (this.A & 0x80) > 0;
@@ -1411,9 +1419,10 @@ var anes;
                                 this.PC16 += 1;
                                 // 2.execute instruction
                                 this.srcV = this.memory[this.addr16];
-                                this.dstV = (this.A - this.srcV & 0xFF) - (+!this.CF) & 0xFF;
+                                this.dstV = (this.A - this.srcV & 0xFFF) - (+!this.CF) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
+                                this.dstV &= 0xFF; // [fixed]
                                 this.VF = (0x80 & (this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
                                 this.A = this.dstV;
                                 this.NF = (this.A & 0x80) > 0;
@@ -1437,9 +1446,10 @@ var anes;
                                 this.addr16 = this.base16 + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
-                                this.dstV = (this.A - this.srcV & 0xFF) - (+!this.CF) & 0xFF;
+                                this.dstV = (this.A - this.srcV & 0xFFF) - (+!this.CF) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
+                                this.dstV &= 0xFF; // [fixed]
                                 this.VF = (0x80 & (this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
                                 this.A = this.dstV;
                                 this.NF = (this.A & 0x80) > 0;
@@ -1480,7 +1490,7 @@ var anes;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16) + 1 & 0xFF;
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.w(this.addr16, this.srcV);
@@ -1495,9 +1505,10 @@ var anes;
                                 this.addr16 = this.u_op << 8 | this.l_op;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
-                                this.dstV = (this.A - this.srcV & 0xFF) - (+!this.CF) & 0xFF;
+                                this.dstV = (this.A - this.srcV & 0xFFF) - (+!this.CF) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
+                                this.dstV &= 0xFF; // [fixed]
                                 this.VF = (0x80 & (this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
                                 this.A = this.dstV;
                                 this.NF = (this.A & 0x80) > 0;
@@ -1512,10 +1523,11 @@ var anes;
                                 this.PC16 += 1;
                                 this.addr16 = this.u_op << 8 | this.l_op;
                                 // 2.execute instruction
-                                this.dstV = this.X - this.r(this.addr16) & 0xFF;
+                                this.dstV = this.X - this.r(this.addr16) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
-                                this.NF = Boolean(this.dstV & 0x80);
+                                this.dstV &= 0xFF; // [fixed]
+                                this.NF = (this.dstV & 0x80) > 0;
                                 this.ZF = !this.dstV;
                             }
                         }
@@ -1532,9 +1544,10 @@ var anes;
                                 this.PC16 += 1;
                                 // 2.execute instruction
                                 this.srcV = this.l_op;
-                                this.dstV = (this.A - this.srcV & 0xFF) - (+!this.CF) & 0xFF;
+                                this.dstV = (this.A - this.srcV & 0xFFF) - (+!this.CF) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
+                                this.dstV &= 0xFF; // [fixed]
                                 this.VF = (0x80 & (this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
                                 this.A = this.dstV;
                                 this.NF = (this.A & 0x80) > 0;
@@ -1543,10 +1556,9 @@ var anes;
                             /* INX */
                             else /*0xE8*/ {
                                 // 2.execute instruction
-                                this.X += 1;
-                                this.X &= 0xFF; // [fixed]
+                                this.X = this.X + 1 & 0xFF;
                                 // 3.update flags
-                                this.NF = Boolean(this.X & 0x80);
+                                this.NF = (this.X & 0x80) > 0;
                                 this.ZF = !this.X;
                             }
                         }
@@ -1561,7 +1573,7 @@ var anes;
                                 // 2.execute instruction
                                 this.srcV = this.memory[this.addr16] + 1 & 0xFF;
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.memory[this.addr16] = this.srcV;
@@ -1573,9 +1585,10 @@ var anes;
                                 this.PC16 += 1;
                                 // 2.execute instruction
                                 this.srcV = this.memory[this.addr16];
-                                this.dstV = (this.A - this.srcV & 0xFF) - (+!this.CF) & 0xFF;
+                                this.dstV = (this.A - this.srcV & 0xFFF) - (+!this.CF) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
+                                this.dstV &= 0xFF; // [fixed]
                                 this.VF = (0x80 & (this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
                                 this.A = this.dstV;
                                 this.NF = (this.A & 0x80) > 0;
@@ -1587,10 +1600,11 @@ var anes;
                                 this.addr16 = this.memory[this.PC16];
                                 this.PC16 += 1;
                                 // 2.execute instruction
-                                this.dstV = this.X - this.memory[this.addr16];
+                                this.dstV = this.X - this.memory[this.addr16] & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
-                                this.NF = Boolean(this.dstV & 0x80);
+                                this.dstV &= 0xFF; // [fixed]
+                                this.NF = (this.dstV & 0x80) > 0;
                                 this.ZF = !this.dstV;
                             }
                         }
@@ -1604,12 +1618,13 @@ var anes;
                                 // 1.Zero Page Indexed Indirect Addressing,X
                                 this.l_op = this.memory[this.PC16];
                                 this.PC16 += 1;
-                                this.addr16 = this.memory[(this.l_op + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_op + this.X & 0xFF];
+                                this.addr16 = this.memory[this.l_op + this.X + 1 & 0xFF] << 8 | this.memory[this.l_op + this.X & 0xFF];
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
-                                this.dstV = (this.A - this.srcV & 0xFF) - (+!this.CF) & 0xFF;
+                                this.dstV = (this.A - this.srcV & 0xFFF) - (+!this.CF) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
+                                this.dstV &= 0xFF; // [fixed]
                                 this.VF = (0x80 & (this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
                                 this.A = this.dstV;
                                 this.NF = (this.A & 0x80) > 0;
@@ -1621,10 +1636,11 @@ var anes;
                                 this.l_op = this.memory[this.PC16];
                                 this.PC16 += 1;
                                 // 2.execute instruction
-                                this.dstV = this.X - this.l_op & 0xFF;
+                                this.dstV = this.X - this.l_op & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
-                                this.NF = Boolean(this.dstV & 0x80);
+                                this.dstV &= 0xFF; // [fixed]
+                                this.NF = (this.dstV & 0x80) > 0;
                                 this.ZF = !this.dstV;
                             }
                         }
@@ -1646,7 +1662,7 @@ var anes;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16) - 1 & 0xFF;
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.w(this.addr16, this.srcV);
@@ -1661,10 +1677,11 @@ var anes;
                                 this.base16 = this.u_op << 8 | this.l_op;
                                 this.addr16 = this.base16 + this.X & 0xFFFF;
                                 // 2.execute instruction
-                                this.dstV = this.A - this.r(this.addr16) & 0xFF;
+                                this.dstV = this.A - this.r(this.addr16) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
-                                this.NF = Boolean(this.dstV & 0x80);
+                                this.dstV &= 0xFF; // [fixed]
+                                this.NF = (this.dstV & 0x80) > 0;
                                 this.ZF = !this.dstV;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.base16 & 0xFF00) != (this.addr16 & 0xFF00));
@@ -1688,10 +1705,11 @@ var anes;
                                 this.base16 = this.u_op << 8 | this.l_op;
                                 this.addr16 = this.base16 + this.Y & 0xFFFF;
                                 // 2.execute instruction
-                                this.dstV = this.A - this.r(this.addr16) & 0xFF;
+                                this.dstV = this.A - this.r(this.addr16) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
-                                this.NF = Boolean(this.dstV & 0x80);
+                                this.dstV &= 0xFF; // [fixed]
+                                this.NF = (this.dstV & 0x80) > 0;
                                 this.ZF = !this.dstV;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.base16 & 0xFF00) != (this.addr16 & 0xFF00));
@@ -1713,7 +1731,7 @@ var anes;
                                 // 2.execute instruction
                                 this.srcV = this.memory[this.addr16] - 1 & 0xFF;
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.memory[this.addr16] = this.srcV;
@@ -1724,10 +1742,11 @@ var anes;
                                 this.addr16 = this.memory[this.PC16] + this.X & 0xFF;
                                 this.PC16 += 1;
                                 // 2.execute instruction
-                                this.dstV = this.A - this.memory[this.addr16] & 0xFF;
+                                this.dstV = this.A - this.memory[this.addr16] & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
-                                this.NF = Boolean(this.dstV & 0x80);
+                                this.dstV &= 0xFF; // [fixed]
+                                this.NF = (this.dstV & 0x80) > 0;
                                 this.ZF = !this.dstV;
                             }
                             else {
@@ -1747,10 +1766,11 @@ var anes;
                                 this.base16 = this.memory[this.l_op + 1 & 0xFF] << 8 | this.memory[this.l_op];
                                 this.addr16 = this.base16 + this.Y & 0xFFFF;
                                 // 2.execute instruction
-                                this.dstV = this.A - this.r(this.addr16) & 0xFF;
+                                this.dstV = this.A - this.r(this.addr16) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
-                                this.NF = Boolean(this.dstV & 0x80);
+                                this.dstV &= 0xFF; // [fixed]
+                                this.NF = (this.dstV & 0x80) > 0;
                                 this.ZF = !this.dstV;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.base16 & 0xFF00) != (this.addr16 & 0xFF00));
@@ -1788,7 +1808,7 @@ var anes;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16) - 1 & 0xFF;
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.w(this.addr16, this.srcV);
@@ -1802,10 +1822,11 @@ var anes;
                                 this.PC16 += 1;
                                 this.addr16 = this.u_op << 8 | this.l_op;
                                 // 2.execute instruction
-                                this.dstV = this.A - this.r(this.addr16) & 0xFF;
+                                this.dstV = this.A - this.r(this.addr16) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
-                                this.NF = Boolean(this.dstV & 0x80);
+                                this.dstV &= 0xFF; // [fixed]
+                                this.NF = (this.dstV & 0x80) > 0;
                                 this.ZF = !this.dstV;
                             }
                             /* CPY 16bit */
@@ -1817,10 +1838,11 @@ var anes;
                                 this.PC16 += 1;
                                 this.addr16 = this.u_op << 8 | this.l_op;
                                 // 2.execute instruction
-                                this.dstV = (this.Y - this.r(this.addr16)) & 0xFF;
+                                this.dstV = this.Y - this.r(this.addr16) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
-                                this.NF = Boolean(this.dstV & 0x80);
+                                this.dstV &= 0xFF; // [fixed]
+                                this.NF = (this.dstV & 0x80) > 0;
                                 this.ZF = !this.dstV;
                             }
                         }
@@ -1830,10 +1852,9 @@ var anes;
                             /* DEX */
                             else if (this.oc == 0xCA) {
                                 // 2.execute instruction
-                                this.X -= 1;
-                                this.X &= 0xFF; // [fixed]
+                                this.X = this.X - 1 & 0xFF;
                                 // 3.update flags
-                                this.NF = Boolean(this.X & 0x80);
+                                this.NF = (this.X & 0x80) > 0;
                                 this.ZF = !this.X;
                             }
                             /* CMP #8bit */
@@ -1842,19 +1863,19 @@ var anes;
                                 this.l_op = this.memory[this.PC16];
                                 this.PC16 += 1;
                                 // 2.execute instruction
-                                this.dstV = this.A - this.l_op & 0xFF;
+                                this.dstV = this.A - this.l_op & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
-                                this.NF = Boolean(this.dstV & 0x80);
+                                this.dstV &= 0xFF; // [fixed]
+                                this.NF = (this.dstV & 0x80) > 0;
                                 this.ZF = !this.dstV;
                             }
                             /* INY */
                             else /*0xC8*/ {
                                 // 2.execute instruction
-                                this.Y += 1;
-                                this.Y &= 0xFF; // [fixed]
+                                this.Y = this.Y + 1 & 0xFF;
                                 // 3.update flags
-                                this.NF = Boolean(this.Y & 0x80);
+                                this.NF = (this.Y & 0x80) > 0;
                                 this.ZF = !this.Y;
                             }
                         }
@@ -1869,7 +1890,7 @@ var anes;
                                 // 2.execute instruction
                                 this.srcV = this.memory[this.addr16] - 1 & 0xFF;
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.w(this.addr16, this.srcV);
@@ -1880,10 +1901,11 @@ var anes;
                                 this.addr16 = this.memory[this.PC16];
                                 this.PC16 += 1;
                                 // 2.execute instruction
-                                this.dstV = (this.A - this.memory[this.addr16]) & 0xFF;
+                                this.dstV = this.A - this.memory[this.addr16] & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
-                                this.NF = Boolean(this.dstV & 0x80);
+                                this.dstV &= 0xFF; // [fixed]
+                                this.NF = (this.dstV & 0x80) > 0;
                                 this.ZF = !this.dstV;
                             }
                             /* CPY 8bit */
@@ -1892,10 +1914,11 @@ var anes;
                                 this.addr16 = this.memory[this.PC16];
                                 this.PC16 += 1;
                                 // 2.execute instruction
-                                this.dstV = (this.Y - this.memory[this.addr16]) & 0xFF;
+                                this.dstV = this.Y - this.memory[this.addr16] & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
-                                this.NF = Boolean(this.dstV & 0x80);
+                                this.dstV &= 0xFF; // [fixed]
+                                this.NF = (this.dstV & 0x80) > 0;
                                 this.ZF = !this.dstV;
                             }
                         }
@@ -1909,12 +1932,13 @@ var anes;
                                 // 1.Zero Page Indexed Indirect Addressing,X
                                 this.l_op = this.memory[this.PC16];
                                 this.PC16 += 1;
-                                this.addr16 = this.memory[(this.l_op + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_op + this.X & 0xFF];
+                                this.addr16 = this.memory[this.l_op + this.X + 1 & 0xFF] << 8 | this.memory[this.l_op + this.X & 0xFF];
                                 // 2.execute instruction
-                                this.dstV = this.A - this.r(this.addr16) & 0xFF;
+                                this.dstV = this.A - this.r(this.addr16) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
-                                this.NF = Boolean(this.dstV & 0x80);
+                                this.dstV &= 0xFF; // [fixed]
+                                this.NF = (this.dstV & 0x80) > 0;
                                 this.ZF = !this.dstV;
                             }
                             /* CPY #8bit */
@@ -1923,10 +1947,11 @@ var anes;
                                 this.l_op = this.memory[this.PC16];
                                 this.PC16 += 1;
                                 // 2.execute instruction
-                                this.dstV = (this.Y - this.l_op) & 0xFF;
+                                this.dstV = this.Y - this.l_op & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV < 0x100;
-                                this.NF = Boolean(this.dstV & 0x80);
+                                this.dstV &= 0xFF; // [fixed]
+                                this.NF = (this.dstV & 0x80) > 0;
                                 this.ZF = !this.dstV;
                             }
                         }
@@ -1950,7 +1975,7 @@ var anes;
                                 // 2.execute instruction
                                 this.X = this.r(this.addr16);
                                 // 3.update flags
-                                this.NF = Boolean(this.X & 0x80);
+                                this.NF = (this.X & 0x80) > 0;
                                 this.ZF = !this.X;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.base16 & 0xFF00) != (this.addr16 & 0xFF00));
@@ -1984,7 +2009,7 @@ var anes;
                                 // 2.execute instruction
                                 this.Y = this.r(this.addr16);
                                 // 3.update flags
-                                this.NF = Boolean(this.Y & 0x80);
+                                this.NF = (this.Y & 0x80) > 0;
                                 this.ZF = !this.Y;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.base16 & 0xFF00) != (this.addr16 & 0xFF00));
@@ -1998,7 +2023,7 @@ var anes;
                                 // 2.execute instruction
                                 this.X = this.S;
                                 // 3.update flags
-                                this.NF = Boolean(this.X & 0x80);
+                                this.NF = (this.X & 0x80) > 0;
                                 this.ZF = !this.X;
                             }
                             /* LDA 16bit,Y */
@@ -2035,7 +2060,7 @@ var anes;
                                 // 2.execute instruction
                                 this.X = this.memory[this.addr16];
                                 // 3.update flags
-                                this.NF = Boolean(this.X & 0x80);
+                                this.NF = (this.X & 0x80) > 0;
                                 this.ZF = !this.X;
                             }
                             /* LDA 8bit,X */
@@ -2057,7 +2082,7 @@ var anes;
                                 // 2.execute instruction
                                 this.Y = this.memory[this.addr16];
                                 // 3.update flags
-                                this.NF = Boolean(this.Y & 0x80);
+                                this.NF = (this.Y & 0x80) > 0;
                                 this.ZF = !this.Y;
                             }
                         }
@@ -2114,7 +2139,7 @@ var anes;
                                 // 2.execute instruction
                                 this.X = this.r(this.addr16);
                                 // 3.update flags
-                                this.NF = Boolean(this.X & 0x80);
+                                this.NF = (this.X & 0x80) > 0;
                                 this.ZF = !this.X;
                             }
                             /* LDA 16bit */
@@ -2142,7 +2167,7 @@ var anes;
                                 // 2.execute instruction
                                 this.Y = this.r(this.addr16);
                                 // 3.update flags
-                                this.NF = Boolean(this.Y & 0x80);
+                                this.NF = (this.Y & 0x80) > 0;
                                 this.ZF = !this.Y;
                             }
                         }
@@ -2154,7 +2179,7 @@ var anes;
                                 // 2.execute instruction
                                 this.X = this.A;
                                 // 3.update flags
-                                this.NF = Boolean(this.X & 0x80);
+                                this.NF = (this.X & 0x80) > 0;
                                 this.ZF = !this.X;
                             }
                             /* LDA #8bit */
@@ -2173,7 +2198,7 @@ var anes;
                                 // 2.execute instruction
                                 this.Y = this.A;
                                 // 3.update flags
-                                this.NF = Boolean(this.Y & 0x80);
+                                this.NF = (this.Y & 0x80) > 0;
                                 this.ZF = !this.Y;
                             }
                         }
@@ -2188,7 +2213,7 @@ var anes;
                                 // 2.execute instruction
                                 this.X = this.memory[this.addr16];
                                 // 3.update flags
-                                this.NF = Boolean(this.X & 0x80);
+                                this.NF = (this.X & 0x80) > 0;
                                 this.ZF = !this.X;
                             }
                             /* LDA 8bit */
@@ -2210,7 +2235,7 @@ var anes;
                                 // 2.execute instruction
                                 this.Y = this.memory[this.addr16];
                                 // 3.update flags
-                                this.NF = Boolean(this.Y & 0x80);
+                                this.NF = (this.Y & 0x80) > 0;
                                 this.ZF = !this.Y;
                             }
                         }
@@ -2225,7 +2250,7 @@ var anes;
                                 // 2.execute instruction
                                 this.X = this.l_op;
                                 // 3.update flags
-                                this.NF = Boolean(this.X & 0x80);
+                                this.NF = (this.X & 0x80) > 0;
                                 this.ZF = !this.X;
                             }
                             /* LDA (8bit,X) */
@@ -2233,7 +2258,7 @@ var anes;
                                 // 1.Zero Page Indexed Indirect Addressing,X
                                 this.l_op = this.memory[this.PC16];
                                 this.PC16 += 1;
-                                this.addr16 = this.memory[(this.l_op + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_op + this.X & 0xFF];
+                                this.addr16 = this.memory[this.l_op + this.X + 1 & 0xFF] << 8 | this.memory[this.l_op + this.X & 0xFF];
                                 // 2.execute instruction
                                 this.A = this.r(this.addr16);
                                 // 3.update flags
@@ -2248,7 +2273,7 @@ var anes;
                                 // 2.execute instruction
                                 this.Y = this.l_op;
                                 // 3.update flags
-                                this.NF = Boolean(this.Y & 0x80);
+                                this.NF = (this.Y & 0x80) > 0;
                                 this.ZF = !this.Y;
                             }
                         }
@@ -2271,6 +2296,7 @@ var anes;
                                 this.addr16 = this.base16 + this.X & 0xFFFF;
                                 // 2.execute instruction
                                 this.srcV = this.A;
+                                // 3.save data
                                 this.w(this.addr16, this.srcV);
                             }
                             else {
@@ -2295,6 +2321,7 @@ var anes;
                                 this.addr16 = this.base16 + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.srcV = this.A;
+                                // 3.save data
                                 this.w(this.addr16, this.srcV);
                             }
                             /* TYA */
@@ -2348,6 +2375,7 @@ var anes;
                                 this.addr16 = this.base16 + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.srcV = this.A;
+                                // 3.save data
                                 this.w(this.addr16, this.srcV);
                             }
                             /* BCC #8bit */
@@ -2382,6 +2410,7 @@ var anes;
                                 this.addr16 = this.u_op << 8 | this.l_op;
                                 // 2.execute instruction
                                 this.srcV = this.X;
+                                // 3.save data
                                 this.w(this.addr16, this.srcV);
                             }
                             /* STA 16bit */
@@ -2394,6 +2423,7 @@ var anes;
                                 this.addr16 = this.u_op << 8 | this.l_op;
                                 // 2.execute instruction
                                 this.srcV = this.A;
+                                // 3.save data
                                 this.w(this.addr16, this.srcV);
                             }
                             /* STY 16bit */
@@ -2406,6 +2436,7 @@ var anes;
                                 this.addr16 = this.u_op << 8 | this.l_op;
                                 // 2.execute instruction
                                 this.srcV = this.Y;
+                                // 3.save data
                                 this.w(this.addr16, this.srcV);
                             }
                         }
@@ -2425,10 +2456,9 @@ var anes;
                             /* DEY */
                             else /*0x88*/ {
                                 // 2.execute instruction
-                                this.Y -= 1;
-                                this.Y &= 0xFF; // [fixed]
+                                this.Y = this.Y - 1 & 0xFF;
                                 // 3.update flags
-                                this.NF = Boolean(this.Y & 0x80);
+                                this.NF = (this.Y & 0x80) > 0;
                                 this.ZF = !this.Y;
                             }
                         }
@@ -2501,10 +2531,10 @@ var anes;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
                                 this.tmpB = this.CF;
-                                this.CF = Boolean(this.srcV & 0x01);
+                                this.CF = (this.srcV & 0x01) > 0;
                                 this.srcV = this.srcV >> 1 | (+this.tmpB) << 7;
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.w(this.addr16, this.srcV);
@@ -2520,10 +2550,11 @@ var anes;
                                 this.addr16 = this.base16 + this.X & 0xFFFF;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
-                                this.dstV = (this.A + this.srcV & 0xFF) + (+this.CF) & 0xFF;
+                                this.dstV = (this.A + this.srcV & 0xFFF) + (+this.CF) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV > 0xFF;
-                                this.VF = Boolean(0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV));
+                                this.dstV &= 0xFF; // [fixed]
+                                this.VF = (0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
                                 this.A = this.dstV;
                                 this.NF = (this.A & 0x80) > 0;
                                 this.ZF = !this.A;
@@ -2549,10 +2580,11 @@ var anes;
                                 this.addr16 = this.base16 + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
-                                this.dstV = (this.A + this.srcV & 0xFF) + (+this.CF) & 0xFF;
+                                this.dstV = (this.A + this.srcV & 0xFFF) + (+this.CF) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV > 0xFF;
-                                this.VF = Boolean(0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV));
+                                this.dstV &= 0xFF; // [fixed]
+                                this.VF = (0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
                                 this.A = this.dstV;
                                 this.NF = (this.A & 0x80) > 0;
                                 this.ZF = !this.A;
@@ -2576,10 +2608,10 @@ var anes;
                                 // 2.execute instruction
                                 this.srcV = this.memory[this.addr16];
                                 this.tmpB = this.CF;
-                                this.CF = Boolean(this.srcV & 0x01);
+                                this.CF = (this.srcV & 0x01) > 0;
                                 this.srcV = this.srcV >> 1 | (+this.tmpB) << 7;
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.memory[this.addr16] = this.srcV;
@@ -2591,10 +2623,11 @@ var anes;
                                 this.PC16 += 1;
                                 // 2.execute instruction
                                 this.srcV = this.memory[this.addr16];
-                                this.dstV = (this.A + this.srcV & 0xFF) + (+this.CF) & 0xFF;
+                                this.dstV = (this.A + this.srcV & 0xFFF) + (+this.CF) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV > 0xFF;
-                                this.VF = Boolean(0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV));
+                                this.dstV &= 0xFF; // [fixed]
+                                this.VF = (0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
                                 this.A = this.dstV;
                                 this.NF = (this.A & 0x80) > 0;
                                 this.ZF = !this.A;
@@ -2616,10 +2649,11 @@ var anes;
                                 this.addr16 = this.base16 + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
-                                this.dstV = (this.A + this.srcV & 0xFF) + (+this.CF) & 0xFF;
+                                this.dstV = (this.A + this.srcV & 0xFFF) + (+this.CF) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV > 0xFF;
-                                this.VF = Boolean(0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV));
+                                this.dstV &= 0xFF; // [fixed]
+                                this.VF = (0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
                                 this.A = this.dstV;
                                 this.NF = (this.A & 0x80) > 0;
                                 this.ZF = !this.A;
@@ -2659,10 +2693,10 @@ var anes;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
                                 this.tmpB = this.CF;
-                                this.CF = Boolean(this.srcV & 0x01);
+                                this.CF = (this.srcV & 0x01) > 0;
                                 this.srcV = this.srcV >> 1 | (+this.tmpB) << 7;
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.w(this.addr16, this.srcV);
@@ -2677,10 +2711,11 @@ var anes;
                                 this.addr16 = this.u_op << 8 | this.l_op;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
-                                this.dstV = (this.A + this.srcV & 0xFF) + (+this.CF) & 0xFF;
+                                this.dstV = (this.A + this.srcV & 0xFFF) + (+this.CF) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV > 0xFF;
-                                this.VF = Boolean(0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV));
+                                this.dstV &= 0xFF; // [fixed]
+                                this.VF = (0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
                                 this.A = this.dstV;
                                 this.NF = (this.A & 0x80) > 0;
                                 this.ZF = !this.A;
@@ -2707,7 +2742,7 @@ var anes;
                             else if (this.oc == 0x6A) {
                                 // 2.execute instruction
                                 this.tmpB = this.CF;
-                                this.CF = Boolean(this.A & 0x01);
+                                this.CF = (this.A & 0x01) > 0;
                                 this.A = this.A >> 1 | (+this.tmpB) << 7;
                                 this.A &= 0xFF; // [fixed]
                                 // 3.update flags
@@ -2721,10 +2756,11 @@ var anes;
                                 this.PC16 += 1;
                                 // 2.execute instruction
                                 this.srcV = this.l_op;
-                                this.dstV = (this.A + this.srcV & 0xFF) + (+this.CF) & 0xFF;
+                                this.dstV = (this.A + this.srcV & 0xFFF) + (+this.CF) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV > 0xFF;
-                                this.VF = Boolean(0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV));
+                                this.dstV &= 0xFF; // [fixed]
+                                this.VF = (0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
                                 this.A = this.dstV;
                                 this.NF = (this.A & 0x80) > 0;
                                 this.ZF = !this.A;
@@ -2751,10 +2787,10 @@ var anes;
                                 // 2.execute instruction
                                 this.srcV = this.memory[this.addr16];
                                 this.tmpB = this.CF;
-                                this.CF = Boolean(this.srcV & 0x01);
+                                this.CF = (this.srcV & 0x01) > 0;
                                 this.srcV = this.srcV >> 1 | (+this.tmpB) << 7;
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.memory[this.addr16] = this.srcV;
@@ -2766,10 +2802,11 @@ var anes;
                                 this.PC16 += 1;
                                 // 2.execute instruction
                                 this.srcV = this.memory[this.addr16];
-                                this.dstV = (this.A + this.srcV & 0xFF) + (+this.CF) & 0xFF;
+                                this.dstV = (this.A + this.srcV & 0xFFF) + (+this.CF) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV > 0xFF;
-                                this.VF = Boolean(0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV));
+                                this.dstV &= 0xFF; // [fixed]
+                                this.VF = (0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
                                 this.A = this.dstV;
                                 this.NF = (this.A & 0x80) > 0;
                                 this.ZF = !this.A;
@@ -2787,13 +2824,14 @@ var anes;
                                 // 1.Zero Page Indexed Indirect Addressing,X
                                 this.l_op = this.memory[this.PC16];
                                 this.PC16 += 1;
-                                this.addr16 = this.memory[(this.l_op + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_op + this.X & 0xFF];
+                                this.addr16 = this.memory[this.l_op + this.X + 1 & 0xFF] << 8 | this.memory[this.l_op + this.X & 0xFF];
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
-                                this.dstV = (this.A + this.srcV & 0xFF) + (+this.CF) & 0xFF;
+                                this.dstV = (this.A + this.srcV & 0xFFF) + (+this.CF) & 0xFFF;
                                 // 3.update flags
                                 this.CF = this.dstV > 0xFF;
-                                this.VF = Boolean(0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV));
+                                this.dstV &= 0xFF; // [fixed]
+                                this.VF = (0x80 & ~(this.A ^ this.srcV) & (this.A ^ this.dstV)) > 0;
                                 this.A = this.dstV;
                                 this.NF = (this.A & 0x80) > 0;
                                 this.ZF = !this.A;
@@ -2809,7 +2847,7 @@ var anes;
                                 this.u_ad = this.memory[0x0100 + this.S];
                                 // 2.execute instruction
                                 this.addr16 = this.u_ad << 8 | this.l_ad;
-                                this.PC16 = this.addr16 + 1;
+                                this.PC16 = this.addr16 + 1 & 0xFFFF;
                             }
                         }
                     }
@@ -2829,10 +2867,10 @@ var anes;
                                 this.addr16 = this.base16 + this.X & 0xFFFF;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
-                                this.CF = Boolean(this.srcV & 0x01);
+                                this.CF = (this.srcV & 0x01) > 0;
                                 this.srcV >>= 1;
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.w(this.addr16, this.srcV);
@@ -2895,10 +2933,10 @@ var anes;
                                 this.PC16 += 1;
                                 // 2.execute instruction
                                 this.srcV = this.memory[this.addr16];
-                                this.CF = Boolean(this.srcV & 0x01);
+                                this.CF = (this.srcV & 0x01) > 0;
                                 this.srcV >>= 1;
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.memory[this.addr16] = this.srcV;
@@ -2969,10 +3007,10 @@ var anes;
                                 this.addr16 = this.u_op << 8 | this.l_op;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
-                                this.CF = Boolean(this.srcV & 0x01);
+                                this.CF = (this.srcV & 0x01) > 0;
                                 this.srcV >>= 1;
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.w(this.addr16, this.srcV);
@@ -3009,7 +3047,7 @@ var anes;
                             /* LSR */
                             else if (this.oc == 0x4A) {
                                 // 2.execute instruction
-                                this.CF = Boolean(this.A & 0x01);
+                                this.CF = (this.A & 0x01) > 0;
                                 this.A >>= 1;
                                 this.A &= 0xFF; // [fixed]
                                 // 3.update flags
@@ -3047,10 +3085,10 @@ var anes;
                                 this.PC16 += 1;
                                 // 2.execute instruction
                                 this.srcV = this.memory[this.addr16];
-                                this.CF = Boolean(this.srcV & 0x01);
+                                this.CF = (this.srcV & 0x01) > 0;
                                 this.srcV >>= 1;
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.memory[this.addr16] = this.srcV;
@@ -3079,7 +3117,7 @@ var anes;
                                 // 1.Zero Page Indexed Indirect Addressing,X
                                 this.l_op = this.memory[this.PC16];
                                 this.PC16 += 1;
-                                this.addr16 = this.memory[(this.l_op + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_op + this.X & 0xFF];
+                                this.addr16 = this.memory[this.l_op + this.X + 1 & 0xFF] << 8 | this.memory[this.l_op + this.X & 0xFF];
                                 // 2.execute instruction
                                 this.A ^= this.r(this.addr16);
                                 // 3.update flags
@@ -3092,14 +3130,14 @@ var anes;
                                 this.S += 1;
                                 this.S &= 0xFF; // [fixed]
                                 this.P = this.memory[0x0100 + this.S];
-                                this.NF = Boolean(this.P & 0x80);
-                                this.VF = Boolean(this.P & 0x40);
+                                this.NF = (this.P & 0x80) > 0;
+                                this.VF = (this.P & 0x40) > 0;
                                 this.RF = true;
-                                this.BF = Boolean(this.P & 0x10);
-                                this.DF = Boolean(this.P & 0x08);
-                                this.IF = Boolean(this.P & 0x04);
-                                this.ZF = Boolean(this.P & 0x02);
-                                this.CF = Boolean(this.P & 0x01);
+                                this.BF = (this.P & 0x10) > 0;
+                                this.DF = (this.P & 0x08) > 0;
+                                this.IF = (this.P & 0x04) > 0;
+                                this.ZF = (this.P & 0x02) > 0;
+                                this.CF = (this.P & 0x01) > 0;
                                 // stack addressing
                                 this.S += 1;
                                 this.S &= 0xFF; // [fixed]
@@ -3131,11 +3169,11 @@ var anes;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
                                 this.tmpB = this.CF;
-                                this.CF = Boolean(this.srcV & 0x80);
+                                this.CF = (this.srcV & 0x80) > 0;
                                 this.srcV = this.srcV << 1 | (+this.tmpB);
                                 this.srcV &= 0xFF; // [fixed]
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.w(this.addr16, this.srcV);
@@ -3199,11 +3237,11 @@ var anes;
                                 // 2.execute instruction
                                 this.srcV = this.memory[this.addr16];
                                 this.tmpB = this.CF;
-                                this.CF = Boolean(this.srcV & 0x80);
+                                this.CF = (this.srcV & 0x80) > 0;
                                 this.srcV = this.srcV << 1 | (+this.tmpB);
                                 this.srcV &= 0xFF; // [fixed]
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.memory[this.addr16] = this.srcV;
@@ -3275,11 +3313,11 @@ var anes;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
                                 this.tmpB = this.CF;
-                                this.CF = Boolean(this.srcV & 0x80);
+                                this.CF = (this.srcV & 0x80) > 0;
                                 this.srcV = this.srcV << 1 | (+this.tmpB);
                                 this.srcV &= 0xFF; // [fixed]
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.w(this.addr16, this.srcV);
@@ -3309,8 +3347,8 @@ var anes;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
                                 this.ZF = !(this.srcV & this.A);
-                                this.NF = Boolean(this.srcV & 0x80);
-                                this.VF = Boolean(this.srcV & 0x40);
+                                this.NF = (this.srcV & 0x80) > 0;
+                                this.VF = (this.srcV & 0x40) > 0;
                             }
                         }
                         else if (this.oc >= 0x28) {
@@ -3344,14 +3382,14 @@ var anes;
                                 this.S += 1;
                                 this.S &= 0xFF; // [fixed]
                                 this.P = this.memory[0x0100 + this.S];
-                                this.NF = Boolean(this.P & 0x80);
-                                this.VF = Boolean(this.P & 0x40);
+                                this.NF = (this.P & 0x80) > 0;
+                                this.VF = (this.P & 0x40) > 0;
                                 this.RF = true;
-                                this.BF = Boolean(this.P & 0x10);
-                                this.DF = Boolean(this.P & 0x08);
-                                this.IF = Boolean(this.P & 0x04);
-                                this.ZF = Boolean(this.P & 0x02);
-                                this.CF = Boolean(this.P & 0x01);
+                                this.BF = (this.P & 0x10) > 0;
+                                this.DF = (this.P & 0x08) > 0;
+                                this.IF = (this.P & 0x04) > 0;
+                                this.ZF = (this.P & 0x02) > 0;
+                                this.CF = (this.P & 0x01) > 0;
                             }
                         }
                         else if (this.oc >= 0x24) {
@@ -3365,11 +3403,11 @@ var anes;
                                 // 2.execute instruction
                                 this.srcV = this.memory[this.addr16];
                                 this.tmpB = this.CF;
-                                this.CF = Boolean(this.srcV & 0x80);
+                                this.CF = (this.srcV & 0x80) > 0;
                                 this.srcV = this.srcV << 1 | (+this.tmpB);
                                 this.srcV &= 0xFF; // [fixed]
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.memory[this.addr16] = this.srcV;
@@ -3393,8 +3431,8 @@ var anes;
                                 // 2.execute instruction
                                 this.srcV = this.memory[this.addr16];
                                 this.ZF = !(this.srcV & this.A);
-                                this.NF = Boolean(this.srcV & 0x80);
-                                this.VF = Boolean(this.srcV & 0x40);
+                                this.NF = (this.srcV & 0x80) > 0;
+                                this.VF = (this.srcV & 0x40) > 0;
                             }
                         }
                         else {
@@ -3450,11 +3488,11 @@ var anes;
                                 this.addr16 = this.base16 + this.X & 0xFFFF;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
-                                this.CF = Boolean(this.srcV & 0x80);
+                                this.CF = (this.srcV & 0x80) > 0;
                                 this.srcV <<= 1;
                                 this.srcV &= 0xFF; // [fixed]
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.w(this.addr16, this.srcV);
@@ -3517,11 +3555,11 @@ var anes;
                                 this.PC16 += 1;
                                 // 2.execute instruction
                                 this.srcV = this.memory[this.addr16];
-                                this.CF = Boolean(this.srcV & 0x80);
+                                this.CF = (this.srcV & 0x80) > 0;
                                 this.srcV <<= 1;
                                 this.srcV &= 0xFF; // [fixed]
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.memory[this.addr16] = this.srcV;
@@ -3592,11 +3630,11 @@ var anes;
                                 this.addr16 = this.u_op << 8 | this.l_op;
                                 // 2.execute instruction
                                 this.srcV = this.r(this.addr16);
-                                this.CF = Boolean(this.srcV & 0x80);
+                                this.CF = (this.srcV & 0x80) > 0;
                                 this.srcV <<= 1;
                                 this.srcV &= 0xFF; // [fixed]
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.w(this.addr16, this.srcV);
@@ -3661,11 +3699,11 @@ var anes;
                                 this.PC16 += 1;
                                 // 2.execute instruction
                                 this.srcV = this.memory[this.addr16];
-                                this.CF = Boolean(this.srcV & 0x80);
+                                this.CF = (this.srcV & 0x80) > 0;
                                 this.srcV <<= 1;
                                 this.srcV &= 0xFF; // [fixed]
                                 // 3.update flags
-                                this.NF = Boolean(this.srcV & 0x80);
+                                this.NF = (this.srcV & 0x80) > 0;
                                 this.ZF = !this.srcV;
                                 // 4.save data
                                 this.memory[this.addr16] = this.srcV;
@@ -4554,7 +4592,7 @@ var anes;
             //----------------------------------------------------
             _this.VRAM = new Int32Array(0x10000);
             _this.SRAM = new Int32Array(0x100);
-            //this.output = new Int32Array(256 * 240);
+            _this.output = new Uint32Array(256 * 240);
             //----------------------------------------------------
             _this.background = new Int32Array(256 * 240);
             _this.sprite0 = new Int32Array(0x80);
@@ -5224,9 +5262,9 @@ var anes;
             // Create palettes (Nes only supports 64-bit colors)
             this.palettes = [];
             // #0 palette is default palette(defined in NesDoc)
-            this.palettes.push(new Int32Array([0xFF757575, 0xFF271B8F, 0xFF0000AB, 0xFF47009F, 0xFF8F0077, 0xFFAB0013, 0xFFA70000, 0xFF7F0B00, 0xFF432F00, 0xFF004700, 0xFF005100, 0xFF003F17, 0xFF1B3F5F, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFBCBCBC, 0xFF0073EF, 0xFF233BEF, 0xFF8300F3, 0xFFBF00BF, 0xFFE7005B, 0xFFDB2B00, 0xFFCB4F0F, 0xFF8B7300, 0xFF009700, 0xFF00AB00, 0xFF00933B, 0xFF00838B, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF3FBFFF, 0xFF5F97FF, 0xFFA78BFD, 0xFFF77BFF, 0xFFFF77B7, 0xFFFF7763, 0xFFFF9B3B, 0xFFF3BF3F, 0xFF83D313, 0xFF4FDF4B, 0xFF58F898, 0xFF00EBDB, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFFABE7FF, 0xFFC7D7FF, 0xFFD7CBFF, 0xFFFFC7FF, 0xFFFFC7DB, 0xFFFFBFB3, 0xFFFFDBAB, 0xFFFFE7A3, 0xFFE3FFA3, 0xFFABF3BF, 0xFFB3FFCF, 0xFF9FFFF3, 0xFF000000, 0xFF000000, 0xFF000000]));
+            this.palettes.push(new Uint32Array([0xFF757575, 0xFF271B8F, 0xFF0000AB, 0xFF47009F, 0xFF8F0077, 0xFFAB0013, 0xFFA70000, 0xFF7F0B00, 0xFF432F00, 0xFF004700, 0xFF005100, 0xFF003F17, 0xFF1B3F5F, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFBCBCBC, 0xFF0073EF, 0xFF233BEF, 0xFF8300F3, 0xFFBF00BF, 0xFFE7005B, 0xFFDB2B00, 0xFFCB4F0F, 0xFF8B7300, 0xFF009700, 0xFF00AB00, 0xFF00933B, 0xFF00838B, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF3FBFFF, 0xFF5F97FF, 0xFFA78BFD, 0xFFF77BFF, 0xFFFF77B7, 0xFFFF7763, 0xFFFF9B3B, 0xFFF3BF3F, 0xFF83D313, 0xFF4FDF4B, 0xFF58F898, 0xFF00EBDB, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFFABE7FF, 0xFFC7D7FF, 0xFFD7CBFF, 0xFFFFC7FF, 0xFFFFC7DB, 0xFFFFBFB3, 0xFFFFDBAB, 0xFFFFE7A3, 0xFFE3FFA3, 0xFFABF3BF, 0xFFB3FFCF, 0xFF9FFFF3, 0xFF000000, 0xFF000000, 0xFF000000]));
             // #1 palette is used in many other emulators
-            this.palettes.push(new Int32Array([0xFF7F7F7F, 0xFF2000B0, 0xFF2800B8, 0xFF6010A0, 0xFF982078, 0xFFB01030, 0xFFA03000, 0xFF784000, 0xFF485800, 0xFF386800, 0xFF386C00, 0xFF306040, 0xFF305080, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFBCBCBC, 0xFF4060F8, 0xFF4040FF, 0xFF9040F0, 0xFFD840C0, 0xFFD84060, 0xFFE05000, 0xFFC07000, 0xFF888800, 0xFF50A000, 0xFF48A810, 0xFF48A068, 0xFF4090C0, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF60A0FF, 0xFF5080FF, 0xFFA070FF, 0xFFF060FF, 0xFFFF60B0, 0xFFFF7830, 0xFFFFA000, 0xFFE8D020, 0xFF98E800, 0xFF70F040, 0xFF70E090, 0xFF60D0E0, 0xFF606060, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF90D0FF, 0xFFA0B8FF, 0xFFC0B0FF, 0xFFE0B0FF, 0xFFFFB8E8, 0xFFFFC8B8, 0xFFFFD8A0, 0xFFFFF090, 0xFFC8F080, 0xFFA0F0A0, 0xFFA0FFC8, 0xFFA0FFF0, 0xFFA0A0A0, 0xFF000000, 0xFF000000]));
+            this.palettes.push(new Uint32Array([0xFF7F7F7F, 0xFF2000B0, 0xFF2800B8, 0xFF6010A0, 0xFF982078, 0xFFB01030, 0xFFA03000, 0xFF784000, 0xFF485800, 0xFF386800, 0xFF386C00, 0xFF306040, 0xFF305080, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFBCBCBC, 0xFF4060F8, 0xFF4040FF, 0xFF9040F0, 0xFFD840C0, 0xFFD84060, 0xFFE05000, 0xFFC07000, 0xFF888800, 0xFF50A000, 0xFF48A810, 0xFF48A068, 0xFF4090C0, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF60A0FF, 0xFF5080FF, 0xFFA070FF, 0xFFF060FF, 0xFFFF60B0, 0xFFFF7830, 0xFFFFA000, 0xFFE8D020, 0xFF98E800, 0xFF70F040, 0xFF70E090, 0xFF60D0E0, 0xFF606060, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF90D0FF, 0xFFA0B8FF, 0xFFC0B0FF, 0xFFE0B0FF, 0xFFFFB8E8, 0xFFFFC8B8, 0xFFFFD8A0, 0xFFFFF090, 0xFFC8F080, 0xFFA0F0A0, 0xFFA0FFC8, 0xFFA0FFF0, 0xFFA0A0A0, 0xFF000000, 0xFF000000]));
             // reset
             this.reset();
             // set default palette
@@ -5243,7 +5281,6 @@ var anes;
          */
         VM.prototype.connect = function (image) {
             this._image = image;
-            this.bus.ppu.output = this._image.data;
         };
         /**
          * 2.insert cartridge
@@ -5423,6 +5460,8 @@ var anes;
                     break;
                 }
             }
+            var buffer = new Uint8Array(this.bus.ppu.output.buffer);
+            this._image.data.set(buffer);
             if (this.frames % 2 == 0) {
                 this.updateKeys();
             }

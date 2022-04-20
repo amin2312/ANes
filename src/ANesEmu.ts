@@ -8,6 +8,10 @@ class ANesEmu
 	 */
 	private _rom: ArrayBuffer;
 	/**
+	 * Context.
+	 */
+	private _ctx:CanvasRenderingContext2D;
+	/**
 	 * Stats.
 	 */
 	private _stats: Stats = null;
@@ -100,9 +104,9 @@ class ANesEmu
 		this._rom = bytes;
 		// init TV
 		var canvas = document.getElementById('myCanvas') as HTMLCanvasElement;
-		var ctx = canvas.getContext('2d');
+		this._ctx = canvas.getContext('2d');
 		this.TV = canvas;
-		this.TVD = ctx.createImageData(canvas.width, canvas.height);
+		this.TVD = this._ctx.createImageData(canvas.width, canvas.height);
 		// replay game
 		this.replay();
 	}
@@ -133,11 +137,9 @@ class ANesEmu
 		{
 			this._stats.begin();
 		}
-		window.requestAnimationFrame(this.onFrame.bind(this));
 		if (this.TV != null && this.TVD != null)
 		{
-			var ctx = this.TV.getContext('2d');
-			ctx.putImageData(this.TVD, 0, 0);
+			this._ctx.putImageData(this.TVD, 0, 0);
 		}
 		if (this.vm != null)
 		{
@@ -147,6 +149,7 @@ class ANesEmu
 		{
 			this._stats.end();
 		}
+		window.requestAnimationFrame(this.onFrame.bind(this));
 	}
 	/**
 	 * Show performance.

@@ -109,7 +109,7 @@ namespace anes
 		/**
 		 * Outers
 		 */
-		public output: Int8Array;			// bitmap of output image
+		public output: Uint32Array;			// bitmap of output image
 		public renderedFrames: number = 0;	// rendered frames
 
 		public VRAM: Int32Array;			// video RAM:PPU's memory, somrwhere are mapping
@@ -129,7 +129,7 @@ namespace anes
 			//----------------------------------------------------
 			this.VRAM = new Int32Array(0x10000);
 			this.SRAM = new Int32Array(0x100);
-			//this.output = new Int32Array(256 * 240);
+			this.output = new Uint32Array(256 * 240);
 			//----------------------------------------------------
 			this.background = new Int32Array(256 * 240);
 			this.sprite0 = new Int32Array(0x80);
