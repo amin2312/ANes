@@ -7,7 +7,7 @@
     "target": "ES5",
     
     "rootDir": "src/",
-    "outFile": "release/ANesEmu.js",
+    "outFile": "release/index.js",
   },
   "exclude": [
     "release/*"

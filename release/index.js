@@ -18,8 +18,6 @@ var __extends = (this && this.__extends) || (function () {
  * NES模拟器.
  */
 var ANesEmu = /** @class */ (function () {
-    function ANesEmu() {
-    }
     /**
      * [二进制文件] 图像.
      */
@@ -31,26 +29,37 @@ var ANesEmu = /** @class */ (function () {
     //public static ui: UI;
     /**
      * 属性.
-    public static GAP: number = 12;
-    public static EDGE: number = 24;
     public static output: TextField = new TextField;
     private binLoader: URLLoader;
     private tracker: Loader;
     private romUrl: String;
      */
     /**
-     * 构造函数.
+     * Constructor.
      */
-    ANesEmu.prototype.ANesEmulator = function () {
-        // 1.填充背景
-        /*this.graphics.beginFill(0);
-        this.graphics.drawRect(0, 0, stage.stageWidth, stage.stageHeight);
-        // 2.创建标签
-        output.defaultTextFormat = new TextFormat('Consolas', 12, 0xFFFFFF);
-        output.autoSize = TextFieldAutoSize.CENTER;
-        output.x = number(stage.stageWidth / 2);
-        output.y = number((stage.stageHeight - 26) / 2);
-        addChild(output);
+    function ANesEmu() {
+        /**
+         * Stats.
+         */
+        this._stats = null;
+        /**
+         * TV.
+         */
+        this.TV = null;
+        /**
+         * the image data bind of TV
+         */
+        this.TVD = null;
+        /**
+         * Virtual Machine
+         */
+        this.vm = null;
+        this.showPerformance();
+        this.loadRomFromUrl('index.rom', this.onLoadROM.bind(this));
+        document.addEventListener('keydown', this.onKeyDown.bind(this));
+        document.addEventListener('keyup', this.onKeyUp.bind(this));
+        window.requestAnimationFrame(this.onFrame.bind(this));
+        /*
         // 3.加载ROM
         romUrl = this.loaderInfo.parameters.romUrl || 'default.txt';
         binLoader = new URLLoader;
@@ -64,73 +73,109 @@ var ANesEmu = /** @class */ (function () {
         uiLoader: Loader = new Loader;
         uiLoader.loadBytes(new UiBin);
         uiLoader.contentLoaderInfo.addEventListener(Event.COMPLETE, onCompleteUI);
-        addChild(uiLoader);*/
+        addChild(uiLoader);
+        */
+    }
+    /**
+     * Load ROM from url.
+     */
+    ANesEmu.prototype.loadRomFromUrl = function (url, onload) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', url, true);
+        xhr.responseType = 'arraybuffer';
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState == 4) {
+                if (xhr.status == 200) {
+                    onload(xhr.response);
+                }
+                else {
+                    console.log(xhr.responseText);
+                    alert('[LOAD ROM FAIL] ' + xhr.responseText);
+                }
+            }
+        };
+        xhr.send();
+    };
+    ;
+    /**
+     * @private
+     */
+    ANesEmu.prototype.onLoadROM = function (bytes) {
+        this._rom = bytes;
+        // init TV
+        var canvas = document.getElementById('myCanvas');
+        var ctx = canvas.getContext('2d');
+        this.TV = canvas;
+        this.TVD = ctx.createImageData(canvas.width, canvas.height);
+        // replay game
+        this.replay();
     };
     /**
-     * @private
-    private _focus: Shape = new Shape;
-     */
-    /**
-     * @private
-    private function onActivate(e: Event): void
-    {
-        if (_focus.parent)
-        {
-            _focus.parent.removeChild(_focus);
-        }
-    }
-     */
-    /**
-     * @private
-    private function onDeactivate(e: Event): void
-    {
-        if (_focus.parent)
-        {
-            return;
-        }
-        _focus.graphics.beginFill(0xFF0000, 0.2);
-        _focus.graphics.drawRect(0, 0, stage.stageWidth, stage.stageHeight);
-        stage.addChild(_focus);
-    }
-     */
-    /**
-     * @private
-    private function onCompleteBin(e: Event): void
-    {
-        output.visible = false;
-        // 添加显示器
-        TV.scaleX = 2;
-        TV.scaleY = 2;
-        TV.x = EDGE;
-        TV.y = EDGE + GAP;
-        TV.addChild(new Bitmap(new BitmapData(256, 240, false, 0)));
-        shape: Shape = new Shape;
-        shape.graphics.beginFill(0);
-        shape.graphics.drawRect(0, 0, 256, 8);
-        shape.graphics.drawRect(0, 232, 256, 8);
-        TV.addChild(shape);
-        addChildAt(TV, 0);
-        replay();
-    }
-     */
-    /**
-     * 重玩.
+     * Replay.
      */
     ANesEmu.prototype.replay = function () {
         if (this.vm) {
             this.vm.shut();
         }
-        // 创建虚拟机
+        // 1.create VM
         this.vm = new anes.VM();
-        // 连接显示器
-        //this.vm.connect(TV.getChildAt(0) as Bitmap);
-        // 插卡
-        //this.vm.insertCartridge(binLoader.data);
+        // 2.connect TV
+        this.vm.connect(this.TVD);
+        // 3.insert cartridge
+        this.vm.insertCartridge(this._rom);
         // 连接手柄
-        //this.vm.insertJoypay(stage);
+        this.vm.insertJoypay();
+    };
+    /**
+     * @private
+     */
+    ANesEmu.prototype.onFrame = function () {
+        if (this._stats != null) {
+            this._stats.begin();
+        }
+        window.requestAnimationFrame(this.onFrame.bind(this));
+        if (this.TV != null && this.TVD != null) {
+            var ctx = this.TV.getContext('2d');
+            ctx.putImageData(this.TVD, 0, 0);
+        }
+        if (this.vm != null) {
+            this.vm.onFrame();
+        }
+        if (this._stats != null) {
+            this._stats.end();
+        }
+    };
+    /**
+     * Show performance.
+     */
+    ANesEmu.prototype.showPerformance = function () {
+        if (!window.Stats) {
+            return;
+        }
+        this._stats = new Stats();
+        this._stats.showPanel(0); /* 0: fps, 1: ms, 2: mb, 3+: custom */
+        document.body.appendChild(this._stats.dom);
+    };
+    /**
+     * @private
+     */
+    ANesEmu.prototype.onKeyDown = function (e) {
+        if (this.vm != null) {
+            this.vm.onKeyDown(e.keyCode);
+        }
+    };
+    /**
+     * @private
+     */
+    ANesEmu.prototype.onKeyUp = function (e) {
+        if (this.vm != null) {
+            this.vm.onKeyUp(e.keyCode);
+        }
     };
     return ANesEmu;
 }());
+//debugger;
+var ANewEmu = new ANesEmu();
 var anes;
 (function (anes) {
     /**
@@ -152,7 +197,7 @@ var anes;
     var APU = /** @class */ (function (_super) {
         __extends(APU, _super);
         /**
-         * 构造函数.
+         * Constructor.
          */
         function APU(bus) {
             var _this = _super.call(this) || this;
@@ -165,29 +210,30 @@ var anes;
             _this.chT = new TRIANGLE;
             _this.chN = new NOISE;
             _this.chD = new DPCM;
-            _this.vblLength = new Float64Array([5, 127, 10, 1, 19, 2, 40, 3, 80, 4, 30, 5, 7, 6, 13, 7, 6, 8, 12, 9, 24, 10, 48, 11, 96, 12, 36, 13, 8, 14, 16, 15]);
-            _this.freqLimit = new Float64Array([0x03FF, 0x0555, 0x0666, 0x071C, 0x0787, 0x07C1, 0x07E0, 0x07F0]);
-            _this.dutyLut = new Float64Array([2, 4, 8, 12]);
-            _this.noiseFreq = new Float64Array([4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068]);
-            _this.dpcmCycles = new Float64Array([428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106, 85, 72, 54]);
+            _this.vblLength = new Int32Array([5, 127, 10, 1, 19, 2, 40, 3, 80, 4, 30, 5, 7, 6, 13, 7, 6, 8, 12, 9, 24, 10, 48, 11, 96, 12, 36, 13, 8, 14, 16, 15]);
+            _this.freqLimit = new Int32Array([0x03FF, 0x0555, 0x0666, 0x071C, 0x0787, 0x07C1, 0x07E0, 0x07F0]);
+            _this.dutyLut = new Int32Array([2, 4, 8, 12]);
+            _this.noiseFreq = new Int32Array([4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068]);
+            _this.dpcmCycles = new Int32Array([428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106, 85, 72, 54]);
             _this.bus = bus;
             _this.bus = bus;
-            ///FrameIRQ = 0xC0;
-            _this.frameCycles = 0;
-            ///FrameIRQoccur = 0;
-            ///FrameCount = 0;
-            ///FrameType = 0;
             _this.reg4015 = _this.sync_reg4015 = 0;
-            _this.cpu_clock = 1789772.5;
-            _this.sampling_rate = 22050;
-            _this.cycle_rate = (1789772.5 * 65536 / 22050);
+            _this.frameCycles = 0;
+            _this.samplingRate = 22050;
+            _this.cycleRate = (anes.CPU.frequency * 65536 / 22050);
             return _this;
             // 监听样本事件
             //this.sound.addEventListener(SampleDataEvent.SAMPLE_DATA, this.onSampleDataEvent);
             //this.sound.play();
         }
+        /**
+         * Reset.
+         */
         APU.prototype.reset = function () {
         };
+        /**
+         * Read data.
+         */
         APU.prototype.r = function (addr) {
             var data = 0;
             if (addr == 0x4017) {
@@ -195,10 +241,13 @@ var anes;
             }
             return data;
         };
+        /**
+         * Write data.
+         */
         APU.prototype.w = function (addr, data) {
             if (addr >= 0x4000 && addr <= 0x401F) {
                 this.virtualWrite(addr, data);
-                // 加入原始样本
+                // add samples
                 var s = new SAMPLE;
                 s.time = this.bus.cpu.execedCC;
                 s.addr = addr;
@@ -207,7 +256,7 @@ var anes;
             }
         };
         /**
-         * 获取样本.
+         * Shift sample.
          */
         APU.prototype.shiftSample = function (writetime) {
             if (this.samples.length == 0) {
@@ -260,25 +309,25 @@ var anes;
         }
          */
         /**
-         * 渲染声音样本.
+         * Render samples.
          */
-        APU.prototype.renderSamples = function (dwSize) {
+        APU.prototype.renderSamples = function (size) {
             var output;
             var writeTime = 0;
             var s;
             var addr;
             var data;
-            var vol = new Uint8Array(24);
+            var vol = new Uint32Array(24);
             vol[0] = 0x0F0;
             vol[1] = 0x0F0;
             vol[2] = 0x130;
             vol[3] = 0x0C0;
             vol[4] = 0x0F0;
-            // 刷入所有样本
+            // flush all samples
             if (this.elapsedTime > this.bus.cpu.execedCC) {
                 while (this.samples.length) {
                     s = this.samples.shift();
-                    // 写入数据
+                    // write data
                     addr = s.addr;
                     data = s.data;
                     if (addr >= 0x4000 && addr <= 0x401F) {
@@ -286,22 +335,22 @@ var anes;
                     }
                 }
             }
-            // 逐个刷入样本
-            while (dwSize--) {
+            // flush each sample
+            while (size--) {
                 writeTime = this.elapsedTime;
                 for (;;) {
                     s = this.shiftSample(writeTime);
                     if (s == null) {
                         break;
                     }
-                    // 写入数据
+                    // write data
                     addr = s.addr;
                     data = s.data;
                     if (addr >= 0x4000 && addr <= 0x401F) {
                         this.realWrite(addr, data);
                     }
                 }
-                // 输出声音样本
+                // merge rendering results
                 output = 0;
                 output += this.renderRectangle(this.chR[0]) * vol[0];
                 output += this.renderRectangle(this.chR[1]) * vol[1];
@@ -316,20 +365,20 @@ var anes;
                     output = -0x8000;
                 }
                 output /= 2;
-                // 写入FLASH声音样本
+                // write sample to buffer
                 var multiplier = 1 / 32768;
                 var sample = output * multiplier * 5;
                 //this.soundBuffer.writeFloat(sample);
                 //this.soundBuffer.writeFloat(sample);
-                // 累加时间
+                // sum time
                 //elapsedTime += 6.764063492063492;
                 this.elapsedTime += 81.168820;
             }
-            // 同步时间
+            // sync time
             this.elapsedTime = this.bus.cpu.execedCC;
         };
         /**
-         * 真正写入.
+         * Real write data.
          */
         APU.prototype.realWrite = function (addr, data) {
             var no;
@@ -580,7 +629,7 @@ var anes;
             }
         };
         /**
-         * 写入(虚拟).
+         * Virtual Write Data.
          */
         APU.prototype.virtualWrite = function (addr, data) {
             var no;
@@ -670,7 +719,6 @@ var anes;
                             this.chD.sync_irq_gen = data & 0x80;
                             if (!this.chD.sync_irq_gen) {
                                 this.chD.sync_irq_enable = 0;
-                                ///nes->cpu->ClrIRQ( IRQ_DPCM );
                             }
                             break;
                         case 1:
@@ -706,7 +754,6 @@ var anes;
                         this.chD.sync_enable = 0;
                         this.chD.sync_dmalength = 0;
                         this.chD.sync_irq_enable = 0;
-                        ///nes.cpu.ClrIRQ( IRQ_DPCM );
                     }
                     else {
                         this.chD.sync_enable = 0xFF;
@@ -717,19 +764,11 @@ var anes;
                     }
                     break;
                 case 0x4017:
-                    // SyncWrite4017(data);
                     this.frameCycles = 0;
-                    ///FrameIRQ = data;
-                    ///FrameIRQoccur = 0;
-                    ///nes.cpu.ClrIRQ( IRQ_FRAMEIRQ );
-                    ///FrameType = (data & 0x80) ? 1 : 0;
-                    ///FrameCount = 0;
                     if (data & 0x80) {
                         this.UpdateFrame();
                     }
-                    ///FrameCount = 1;
-                    this.frameCycles = 7458;
-                    break;
+                ///FrameCount = 1;
                 case 0x4018:
                     // syncUpdateRectangle
                     for (var i = 0; i < 2; i++) {
@@ -771,32 +810,13 @@ var anes;
             }
         };
         /**
-         * 更新帧.
+         * Update Frame.
          */
         APU.prototype.UpdateFrame = function () {
-            /*///
-            if(!FrameCount)
-            {
-            if(!(FrameIRQ & 0xC0) && nes.GetFrameIRQmode())
-            {
-            FrameIRQoccur = 0xFF;
-            nes.cpu.SetIRQ(IRQ_FRAMEIRQ);
-            }
-            }
-            */
-            ////if(FrameCount == 3)
-            ///{
-            ///	if(FrameIRQ & 0x80)
-            ///	{
-            ///		frameCycles += 7458;
-            //	}
-            ///}
-            ///bus.cpu.w1(0x4018,FrameCount);
             this.bus.cpu.w(0x4018, 0);
-            ///FrameCount = (FrameCount + 1) & 3;
         };
         /**
-         * 渲染方形波.
+         * Render Rectangle Wave.
          */
         APU.prototype.renderRectangle = function (ch) {
             if (!ch.enable || ch.len_count <= 0) {
@@ -811,12 +831,12 @@ var anes;
             var volume = ch.nowvolume;
             var total;
             var sample_weight = ch.phaseacc;
-            if (sample_weight > this.cycle_rate) {
-                sample_weight = this.cycle_rate;
+            if (sample_weight > this.cycleRate) {
+                sample_weight = this.cycleRate;
             }
             total = (ch.adder < ch.duty) ? sample_weight : -sample_weight;
             var freq = (ch.freq + 1) << 16;
-            ch.phaseacc -= this.cycle_rate;
+            ch.phaseacc -= this.cycleRate;
             while (ch.phaseacc < 0) {
                 ch.phaseacc += freq;
                 ch.adder = (ch.adder + 1) & 0x0F;
@@ -826,10 +846,10 @@ var anes;
                 }
                 total += (ch.adder < ch.duty) ? sample_weight : -sample_weight;
             }
-            return Math.floor(volume * total / this.cycle_rate + 0.5);
+            return Math.floor(volume * total / this.cycleRate + 0.5);
         };
         /**
-         * 渲染三角波.
+         * Render Triangle Wave.
          */
         APU.prototype.renderTriangle = function () {
             var vol;
@@ -840,11 +860,11 @@ var anes;
             if (this.chT.freq < (8 << 16)) {
                 return this.chT.nowvolume * vol / 256;
             }
-            this.chT.phaseacc -= this.cycle_rate;
+            this.chT.phaseacc -= this.cycleRate;
             if (this.chT.phaseacc >= 0) {
                 return this.chT.nowvolume * vol / 256;
             }
-            if (this.chT.freq > this.cycle_rate) {
+            if (this.chT.freq > this.cycleRate) {
                 this.chT.phaseacc += this.chT.freq;
                 this.chT.adder = (this.chT.adder + 1) & 0x1F;
                 if (this.chT.adder < 0x10) {
@@ -873,7 +893,7 @@ var anes;
             return (total / num_times) * vol / 256;
         };
         /**
-         * 渲染噪声波.
+         * Render Noise Wave.
          */
         APU.prototype.renderNoise = function () {
             if (!this.chN.enable || this.chN.len_count <= 0) {
@@ -883,11 +903,11 @@ var anes;
                 this.chN.nowvolume = this.chN.volume << 8;
             }
             var vol = 256 - ((this.chD.reg[1] & 0x01) + this.chD.dpcm_value * 2);
-            this.chN.phaseacc -= this.cycle_rate;
+            this.chN.phaseacc -= this.cycleRate;
             if (this.chN.phaseacc >= 0) {
                 return this.chN.output * vol / 256;
             }
-            if (this.chN.freq > this.cycle_rate) {
+            if (this.chN.freq > this.cycleRate) {
                 this.chN.phaseacc += this.chN.freq;
                 if (this.noiseShiftreg(this.chN.xor_tap)) {
                     this.chN.output = this.chN.nowvolume;
@@ -917,11 +937,11 @@ var anes;
             return (total / num_times) * vol / 256;
         };
         /**
-         * 渲染差分脉冲编码调制.
+         * Render DPCM.
          */
         APU.prototype.renderDPCM = function () {
             if (this.chD.dmalength) {
-                this.chD.phaseacc -= this.cycle_rate;
+                this.chD.phaseacc -= this.cycleRate;
                 while (this.chD.phaseacc < 0) {
                     this.chD.phaseacc += this.chD.freq;
                     if (!(this.chD.dmalength & 7)) {
@@ -955,30 +975,10 @@ var anes;
                     }
                 }
             }
-            /*
-            chD.dpcm_output_real = ((chD.reg[1] & 0x01) + chD.dpcm_value * 2) - 0x40;
-            if(Math.abs(chD.dpcm_output_real - chD.dpcm_output_fake) <= 8)
-            {
-            chD.dpcm_output_fake = chD.dpcm_output_real;
-            chD.output = chD.dpcm_output_real << 8;
-            }
-            else
-            {
-            if(chD.dpcm_output_real > chD.dpcm_output_fake)
-            {
-            chD.dpcm_output_fake += 8;
-            }
-            else
-            {
-            chD.dpcm_output_fake -= 8;
-            }
-            chD.output = chD.dpcm_output_fake << 8;
-            }
-            */
             return this.chD.output;
         };
         /**
-         * 更新DPCM(虚拟).
+         * Update Virtaul DPCM.
          */
         APU.prototype.virtualUpdateDPCM = function (cycles) {
             this.frameCycles += cycles;
@@ -986,7 +986,6 @@ var anes;
                 this.frameCycles -= 7458;
                 this.bus.cpu.w(0x4018, 0); // 写入4018
             }
-            // 更新DPCM(虚拟)
             if (this.chD.sync_enable) {
                 this.chD.sync_cycles -= cycles;
                 while (this.chD.sync_cycles < 0) {
@@ -995,7 +994,6 @@ var anes;
                     }
                     this.chD.sync_cycles += this.chD.sync_cache_cycles;
                     if (this.chD.sync_dmalength) {
-                        //if(--chD.sync_dmalength < 2)
                         if (!(--this.chD.sync_dmalength)) {
                             if (this.chD.sync_looping) {
                                 this.chD.sync_dmalength = this.chD.sync_cache_dmalength;
@@ -1004,7 +1002,6 @@ var anes;
                                 this.chD.sync_dmalength = 0;
                                 if (this.chD.sync_irq_gen) {
                                     this.chD.sync_irq_enable = 0xFF;
-                                    ///nes->cpu->SetIRQ( IRQ_DPCM );
                                 }
                             }
                         }
@@ -1033,7 +1030,7 @@ var anes;
     }(anes.Node));
     anes.APU = APU;
     /**
-     * 样本.
+     * Sample.
      */
     var SAMPLE = /** @class */ (function () {
         function SAMPLE() {
@@ -1041,7 +1038,7 @@ var anes;
         return SAMPLE;
     }());
     /**
-     * 方形波.
+     * Rectangle Wave.
      */
     var RECTANGLE = /** @class */ (function () {
         function RECTANGLE() {
@@ -1052,7 +1049,7 @@ var anes;
         return RECTANGLE;
     }());
     /**
-     * 三角波.
+     * Triangle Wave.
      */
     var TRIANGLE = /** @class */ (function () {
         function TRIANGLE() {
@@ -1062,7 +1059,7 @@ var anes;
         return TRIANGLE;
     }());
     /**
-     * 噪声波.
+    * Noise Wave.
      */
     var NOISE = /** @class */ (function () {
         function NOISE() {
@@ -1072,7 +1069,7 @@ var anes;
         return NOISE;
     }());
     /**
-     * 差分脉冲编码调制.
+     * DPCM.
      */
     var DPCM = /** @class */ (function () {
         function DPCM() {
@@ -1113,18 +1110,17 @@ var anes;
             this.mapper1 = new anes.Mapper1(this);
             this.mapper2 = new anes.Mapper2(this);
             this.mapper3 = new anes.Mapper3(this);
-            this.mapper4 = new anes.Mapper4(this);
+            //this.mapper4 = new Mapper4(this);
             this.mappersW = new Array(0x100);
-            this.mappersW[0] = this.mapper0.write;
-            this.mappersW[1] = this.mapper1.write;
-            this.mappersW[2] = this.mapper2.write;
-            this.mappersW[3] = this.mapper3.write;
+            this.mappersW[0] = this.mapper0.write.bind(this.mapper0);
+            this.mappersW[1] = this.mapper1.write.bind(this.mapper1);
+            this.mappersW[2] = this.mapper2.write.bind(this.mapper2);
+            this.mappersW[3] = this.mapper3.write.bind(this.mapper3);
             this.mappersR = new Array(0x100);
-            this.mappersR[0] = this.mapper0.reset;
-            this.mappersR[1] = this.mapper1.reset;
-            this.mappersR[2] = this.mapper2.reset;
-            this.mappersR[3] = this.mapper3.reset;
-            this.mappersR[4] = this.mapper4.reset;
+            this.mappersR[0] = this.mapper0.reset.bind(this.mapper0);
+            this.mappersR[1] = this.mapper1.reset.bind(this.mapper1);
+            this.mappersR[2] = this.mapper2.reset.bind(this.mapper2);
+            this.mappersR[3] = this.mapper3.reset.bind(this.mapper3);
         }
         return Bus;
     }());
@@ -1143,10 +1139,9 @@ var anes;
          */
         function CPU(bus) {
             var _this = _super.call(this) || this;
-            /**
-             * Defines.
-             */
-            _this.frequency = 1789772.5;
+            _this.onceExecedCC = 0; // clock cycles of executed in once exec
+            _this.execedCC = 0; // clock cycles of executed
+            _this._ii = 0;
             _this.bus = bus;
             // initialize registers
             _this.A = _this.X = _this.Y = _this.P = _this.PC = 0;
@@ -1154,8 +1149,8 @@ var anes;
             _this.NF = _this.VF = _this.BF = _this.DF = _this.IF = _this.ZF = _this.CF = false;
             _this.RF = true;
             // initalize variables
-            _this.memory = new Uint8Array(0x10000); // 64KB
-            _this.cycleList = new Uint8Array([7, 6, 0, 0, 0, 3, 5, 0, 3, 2, 2, 0, 0, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 6, 2, 0, 0, 3, 3, 5, 0, 4, 2, 2, 0, 4, 4, 6, 0, 2, 2, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 6, 6, 0, 0, 0, 3, 5, 0, 3, 2, 2, 0, 3, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 6, 6, 0, 0, 0, 3, 5, 0, 4, 2, 2, 0, 5, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 0, 6, 0, 0, 3, 3, 3, 0, 2, 0, 2, 0, 4, 4, 4, 0, 2, 6, 0, 0, 4, 4, 4, 0, 2, 5, 2, 0, 0, 5, 0, 0, 2, 6, 2, 0, 3, 3, 3, 0, 2, 2, 2, 0, 4, 4, 4, 0, 2, 5, 0, 0, 4, 4, 4, 0, 2, 4, 2, 0, 4, 4, 4, 0, 2, 6, 0, 0, 3, 3, 5, 0, 2, 2, 2, 0, 4, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 2, 6, 0, 0, 3, 3, 5, 0, 2, 2, 2, 0, 4, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0]);
+            _this.memory = new Int32Array(0x10000); // 64KB
+            _this.cycleList = new Int32Array([7, 6, 0, 0, 0, 3, 5, 0, 3, 2, 2, 0, 0, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 6, 2, 0, 0, 3, 3, 5, 0, 4, 2, 2, 0, 4, 4, 6, 0, 2, 2, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 6, 6, 0, 0, 0, 3, 5, 0, 3, 2, 2, 0, 3, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 6, 6, 0, 0, 0, 3, 5, 0, 4, 2, 2, 0, 5, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 0, 6, 0, 0, 3, 3, 3, 0, 2, 0, 2, 0, 4, 4, 4, 0, 2, 6, 0, 0, 4, 4, 4, 0, 2, 5, 2, 0, 0, 5, 0, 0, 2, 6, 2, 0, 3, 3, 3, 0, 2, 2, 2, 0, 4, 4, 4, 0, 2, 5, 0, 0, 4, 4, 4, 0, 2, 4, 2, 0, 4, 4, 4, 0, 2, 6, 0, 0, 3, 3, 5, 0, 2, 2, 2, 0, 4, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 2, 6, 0, 0, 3, 3, 5, 0, 2, 2, 2, 0, 4, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0]);
             return _this;
         }
         /**
@@ -1260,7 +1255,7 @@ var anes;
             }
             else if (this.seg == 0x01) {
                 /* $2000-$3FFF(PPU) */
-                this.bus.ppu.w2(addr & 0xE007, value);
+                this.bus.ppu.w(addr & 0xE007, value);
             }
             else if (this.seg == 0x02) {
                 /* $4000-$5FFF(Registers) */
@@ -1304,6 +1299,13 @@ var anes;
         CPU.prototype.exec = function (requiredCC) {
             for (;;) {
                 this.oc = this.memory[this.PC];
+                if (this._ii >= 16000 && this._ii <= 17000) {
+                    console.log(this._ii, this.oc, this.Y);
+                }
+                if (this._ii == 16273) {
+                    debugger;
+                }
+                this._ii++;
                 this.lastPC = this.PC;
                 this.PC += 1;
                 if (this.oc >= 0xC0) {
@@ -1324,7 +1326,7 @@ var anes;
                                 // 2.execute instruction
                                 this.src = this.r(this.addr) + 1 & 0xFF;
                                 // 3.update flags
-                                this.NF = Boolean(this.src & 0x80);
+                                this.NF = (this.src & 0x80) > 0;
                                 this.ZF = !this.src;
                                 // 4.save data
                                 this.w(this.addr, this.src);
@@ -1340,13 +1342,12 @@ var anes;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
                                 // 2.execute instruction
                                 this.src = this.r(this.addr);
-                                this.dst = (this.A - this.src) - (+!this.CF);
+                                this.dst = (this.A - this.src & 0xFF) - (+!this.CF) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
-                                this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
+                                this.VF = (0x80 & (this.A ^ this.src) & (this.A ^ this.dst)) > 0;
                                 this.A = this.dst;
-                                this.NF = Boolean(this.A & 0x80);
+                                this.NF = (this.A & 0x80) > 0;
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
@@ -1368,16 +1369,16 @@ var anes;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
-                                this.addr = this.tmpN + this.Y;
+                                this.addr = this.tmpN + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.src = this.r(this.addr);
-                                this.dst = (this.A - this.src) - (+!this.CF);
+                                this.dst = (this.A - this.src & 0xFF) - (+!this.CF) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
-                                this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
+                                this.VF = (0x80 & (this.A ^ this.src) & (this.A ^ this.dst)) > 0;
                                 this.A = this.dst;
-                                this.NF = Boolean(this.A & 0x80);
+                                this.NF = (this.A & 0x80) > 0;
                                 this.ZF = !this.A;
                                 // 9.sum clock cycles
                                 this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
@@ -1411,10 +1412,9 @@ var anes;
                                 this.PC += 1;
                                 // 2.execute instruction
                                 this.src = this.memory[this.addr];
-                                this.dst = (this.A - this.src) - (+!this.CF);
+                                this.dst = (this.A - this.src & 0xFF) - (+!this.CF) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
                                 this.NF = Boolean(this.A & 0x80);
@@ -1435,13 +1435,12 @@ var anes;
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
-                                this.addr = this.tmpN + this.Y;
+                                this.addr = this.tmpN + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.src = this.r(this.addr);
-                                this.dst = (this.A - this.src) - (+!this.CF);
+                                this.dst = (this.A - this.src & 0xFF) - (+!this.CF) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
                                 this.NF = Boolean(this.A & 0x80);
@@ -1497,10 +1496,9 @@ var anes;
                                 this.addr = this.u_or << 8 | this.l_or;
                                 // 2.execute instruction
                                 this.src = this.r(this.addr);
-                                this.dst = (this.A - this.src) - (+!this.CF);
+                                this.dst = (this.A - this.src & 0xFF) - (+!this.CF) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
                                 this.NF = Boolean(this.A & 0x80);
@@ -1515,10 +1513,9 @@ var anes;
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
                                 // 2.execute instruction
-                                this.dst = this.X - this.r(this.addr);
+                                this.dst = this.X - this.r(this.addr) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
@@ -1536,10 +1533,9 @@ var anes;
                                 this.PC += 1;
                                 // 2.execute instruction
                                 this.src = this.l_or;
-                                this.dst = (this.A - this.src) - (+!this.CF);
+                                this.dst = (this.A - this.src & 0xFF) - (+!this.CF) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
                                 this.NF = Boolean(this.A & 0x80);
@@ -1578,10 +1574,9 @@ var anes;
                                 this.PC += 1;
                                 // 2.execute instruction
                                 this.src = this.memory[this.addr];
-                                this.dst = (this.A - this.src) - (+!this.CF);
+                                this.dst = (this.A - this.src & 0xFF) - (+!this.CF) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
                                 this.NF = Boolean(this.A & 0x80);
@@ -1596,7 +1591,6 @@ var anes;
                                 this.dst = this.X - this.memory[this.addr];
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
@@ -1614,10 +1608,9 @@ var anes;
                                 this.addr = this.memory[(this.l_or + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_or + this.X & 0xFF];
                                 // 2.execute instruction
                                 this.src = this.r(this.addr);
-                                this.dst = (this.A - this.src) - (+!this.CF);
+                                this.dst = (this.A - this.src & 0xFF) - (+!this.CF) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
                                 this.NF = Boolean(this.A & 0x80);
@@ -1629,10 +1622,9 @@ var anes;
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 // 2.execute instruction
-                                this.dst = this.X - this.l_or;
+                                this.dst = this.X - this.l_or & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
@@ -1670,10 +1662,9 @@ var anes;
                                 this.tmpN = this.u_or << 8 | this.l_or;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
                                 // 2.execute instruction
-                                this.dst = this.A - this.r(this.addr);
+                                this.dst = this.A - this.r(this.addr) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                                 // 9.sum clock cycles
@@ -1696,12 +1687,11 @@ var anes;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
-                                this.addr = this.tmpN + this.Y;
+                                this.addr = this.tmpN + this.Y & 0xFFFF;
                                 // 2.execute instruction
-                                this.dst = this.A - this.r(this.addr);
+                                this.dst = this.A - this.r(this.addr) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                                 // 9.sum clock cycles
@@ -1735,10 +1725,9 @@ var anes;
                                 this.addr = this.memory[this.PC] + this.X & 0xFF;
                                 this.PC += 1;
                                 // 2.execute instruction
-                                this.dst = this.A - this.memory[this.addr];
+                                this.dst = this.A - this.memory[this.addr] & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
@@ -1757,12 +1746,11 @@ var anes;
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
-                                this.addr = this.tmpN + this.Y;
+                                this.addr = this.tmpN + this.Y & 0xFFFF;
                                 // 2.execute instruction
-                                this.dst = this.A - this.r(this.addr);
+                                this.dst = this.A - this.r(this.addr) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                                 // 9.sum clock cycles
@@ -1815,10 +1803,9 @@ var anes;
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
                                 // 2.execute instruction
-                                this.dst = this.A - this.r(this.addr);
+                                this.dst = this.A - this.r(this.addr) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
@@ -1831,10 +1818,9 @@ var anes;
                                 this.PC += 1;
                                 this.addr = this.u_or << 8 | this.l_or;
                                 // 2.execute instruction
-                                this.dst = this.Y - this.r(this.addr);
+                                this.dst = (this.Y - this.r(this.addr)) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
@@ -1857,7 +1843,7 @@ var anes;
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 // 2.execute instruction
-                                this.dst = this.A - this.l_or;
+                                this.dst = this.A - this.l_or & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
                                 this.dst &= 0xFF; // [fixed]
@@ -1896,10 +1882,9 @@ var anes;
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
                                 // 2.execute instruction
-                                this.dst = this.A - this.memory[this.addr];
+                                this.dst = (this.A - this.memory[this.addr]) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
@@ -1909,10 +1894,9 @@ var anes;
                                 this.addr = this.memory[this.PC];
                                 this.PC += 1;
                                 // 2.execute instruction
-                                this.dst = this.Y - this.memory[this.addr];
+                                this.dst = (this.Y - this.memory[this.addr]) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
@@ -1929,10 +1913,9 @@ var anes;
                                 this.PC += 1;
                                 this.addr = this.memory[(this.l_or + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_or + this.X & 0xFF];
                                 // 2.execute instruction
-                                this.dst = this.A - this.r(this.addr);
+                                this.dst = this.A - this.r(this.addr) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
@@ -1942,10 +1925,9 @@ var anes;
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 // 2.execute instruction
-                                this.dst = this.Y - this.l_or;
+                                this.dst = (this.Y - this.l_or) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst < 0x100;
-                                this.dst &= 0xFF; // [fixed]
                                 this.NF = Boolean(this.dst & 0x80);
                                 this.ZF = !this.dst;
                             }
@@ -1966,7 +1948,7 @@ var anes;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
-                                this.addr = this.tmpN + this.Y;
+                                this.addr = this.tmpN + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.X = this.r(this.addr);
                                 // 3.update flags
@@ -2029,7 +2011,7 @@ var anes;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
-                                this.addr = this.tmpN + this.Y;
+                                this.addr = this.tmpN + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.A = this.r(this.addr);
                                 // 3.update flags
@@ -2092,7 +2074,7 @@ var anes;
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
-                                this.addr = this.tmpN + this.Y;
+                                this.addr = this.tmpN + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.A = this.r(this.addr);
                                 // 3.update flags
@@ -2107,7 +2089,7 @@ var anes;
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 // 2.execute instruction
-                                if (+this.CF) {
+                                if (this.CF) {
                                     this.tmpN = this.PC;
                                     this.addr = this.PC + ((this.l_or << 24) >> 24) & 0xFFFF;
                                     this.PC = this.addr;
@@ -2312,7 +2294,7 @@ var anes;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
-                                this.addr = this.tmpN + this.Y;
+                                this.addr = this.tmpN + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.src = this.A;
                                 this.w(this.addr, this.src);
@@ -2365,7 +2347,7 @@ var anes;
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
-                                this.addr = this.tmpN + this.Y;
+                                this.addr = this.tmpN + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.src = this.A;
                                 this.w(this.addr, this.src);
@@ -2540,10 +2522,9 @@ var anes;
                                 this.addr = this.tmpN + this.X & 0xFFFF;
                                 // 2.execute instruction
                                 this.src = this.r(this.addr);
-                                this.dst = (this.A + this.src) + (+this.CF);
+                                this.dst = (this.A + this.src & 0xFF) + (+this.CF) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst > 0xFF;
-                                this.dst &= 0xFF; // [fixed]
                                 this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
                                 this.NF = Boolean(this.A & 0x80);
@@ -2567,13 +2548,12 @@ var anes;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
-                                this.addr = this.tmpN + this.Y;
+                                this.addr = this.tmpN + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.src = this.r(this.addr);
-                                this.dst = (this.A + this.src) + (+this.CF);
+                                this.dst = (this.A + this.src & 0xFF) + (+this.CF) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst > 0xFF;
-                                this.dst &= 0xFF; // [fixed]
                                 this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
                                 this.NF = Boolean(this.A & 0x80);
@@ -2613,10 +2593,9 @@ var anes;
                                 this.PC += 1;
                                 // 2.execute instruction
                                 this.src = this.memory[this.addr];
-                                this.dst = (this.A + this.src) + (+this.CF);
+                                this.dst = (this.A + this.src & 0xFF) + (+this.CF) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst > 0xFF;
-                                this.dst &= 0xFF; // [fixed]
                                 this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
                                 this.NF = Boolean(this.A & 0x80);
@@ -2636,13 +2615,12 @@ var anes;
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
-                                this.addr = this.tmpN + this.Y;
+                                this.addr = this.tmpN + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.src = this.r(this.addr);
-                                this.dst = (this.A + this.src) + (+this.CF);
+                                this.dst = (this.A + this.src & 0xFF) + (+this.CF) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst > 0xFF;
-                                this.dst &= 0xFF; // [fixed]
                                 this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
                                 this.NF = Boolean(this.A & 0x80);
@@ -2701,10 +2679,9 @@ var anes;
                                 this.addr = this.u_or << 8 | this.l_or;
                                 // 2.execute instruction
                                 this.src = this.r(this.addr);
-                                this.dst = (this.A + this.src) + (+this.CF);
+                                this.dst = (this.A + this.src & 0xFF) + (+this.CF) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst > 0xFF;
-                                this.dst &= 0xFF; // [fixed]
                                 this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
                                 this.NF = Boolean(this.A & 0x80);
@@ -2746,10 +2723,9 @@ var anes;
                                 this.PC += 1;
                                 // 2.execute instruction
                                 this.src = this.l_or;
-                                this.dst = (this.A + this.src) + (+this.CF);
+                                this.dst = (this.A + this.src & 0xFF) + (+this.CF) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst > 0xFF;
-                                this.dst &= 0xFF; // [fixed]
                                 this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
                                 this.NF = Boolean(this.A & 0x80);
@@ -2792,10 +2768,9 @@ var anes;
                                 this.PC += 1;
                                 // 2.execute instruction
                                 this.src = this.memory[this.addr];
-                                this.dst = (this.A + this.src) + (+this.CF);
+                                this.dst = (this.A + this.src & 0xFF) + (+this.CF) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst > 0xFF;
-                                this.dst &= 0xFF; // [fixed]
                                 this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
                                 this.NF = Boolean(this.A & 0x80);
@@ -2817,10 +2792,9 @@ var anes;
                                 this.addr = this.memory[(this.l_or + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_or + this.X & 0xFF];
                                 // 2.execute instruction
                                 this.src = this.r(this.addr);
-                                this.dst = (this.A + this.src) + (+this.CF);
+                                this.dst = (this.A + this.src & 0xFF) + (+this.CF) & 0xFF;
                                 // 3.update flags
                                 this.CF = this.dst > 0xFF;
-                                this.dst &= 0xFF; // [fixed]
                                 this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
                                 this.A = this.dst;
                                 this.NF = Boolean(this.A & 0x80);
@@ -2898,7 +2872,7 @@ var anes;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
-                                this.addr = this.tmpN + this.Y;
+                                this.addr = this.tmpN + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.A ^= this.r(this.addr);
                                 // 3.update flags
@@ -2956,7 +2930,7 @@ var anes;
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
-                                this.addr = this.tmpN + this.Y;
+                                this.addr = this.tmpN + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.A ^= this.r(this.addr);
                                 // 3.update flags
@@ -3201,7 +3175,7 @@ var anes;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
-                                this.addr = this.tmpN + this.Y;
+                                this.addr = this.tmpN + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.A &= this.r(this.addr);
                                 // 3.update flags
@@ -3261,7 +3235,7 @@ var anes;
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
-                                this.addr = this.tmpN + this.Y;
+                                this.addr = this.tmpN + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.A &= this.r(this.addr);
                                 // 3.update flags
@@ -3520,7 +3494,7 @@ var anes;
                                 this.u_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.u_or << 8 | this.l_or;
-                                this.addr = this.tmpN + this.Y;
+                                this.addr = this.tmpN + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.A |= this.r(this.addr);
                                 // 3.update flags
@@ -3579,7 +3553,7 @@ var anes;
                                 this.l_or = this.memory[this.PC];
                                 this.PC += 1;
                                 this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
-                                this.addr = this.tmpN + this.Y;
+                                this.addr = this.tmpN + this.Y & 0xFFFF;
                                 // 2.execute instruction
                                 this.A |= this.r(this.addr);
                                 // 3.update flags
@@ -3781,6 +3755,10 @@ var anes;
             }
             return true;
         };
+        /**
+         * Defines.
+         */
+        CPU.frequency = 1789772.5;
         return CPU;
     }(anes.Node));
     anes.CPU = CPU;
@@ -4158,20 +4136,20 @@ var anes;
          */
         function Mapper4(bus) {
             var _this = _super.call(this) || this;
-            _this.reg = new Uint8Array(8);
-            _this.nPRGIndex = new Uint8Array(2);
-            _this.nCHRIndex = new Uint8Array(8);
+            _this.reg = new Int32Array(8);
+            _this.nPRGIndex = new Int32Array(2);
+            _this.nCHRIndex = new Int32Array(8);
             _this.nIRQLatch = 0xFF;
             _this.nIRQCounter = 0;
             _this.nIRQEnable = 0;
             _this.nIRQPreset = 0;
             _this.nIRQPresetVbl = 0;
-            _this.Mapper4_CPU_Page = new Uint8Array(4);
-            _this.Mapper4_PPU_Page = new Uint8Array(12);
-            //public PPU_MEM_BANK: Uint8Array = new Uint8Array(12);
-            //public CPU_MEM_BANK: Uint8Array = new Uint8Array(8);
-            _this.CRAM = new Uint8Array(32 * 1024);
-            _this.VRAM = new Uint8Array(4 * 1024);
+            _this.Mapper4_CPU_Page = new Int32Array(4);
+            _this.Mapper4_PPU_Page = new Int32Array(12);
+            //public PPU_MEM_BANK: Int32Array = new Int32Array(12);
+            //public CPU_MEM_BANK: Int32Array = new Int32Array(8);
+            _this.CRAM = new Int32Array(32 * 1024);
+            _this.VRAM = new Int32Array(4 * 1024);
             _this.bus = bus;
             return _this;
         }
@@ -4476,22 +4454,117 @@ var anes;
          */
         function PPU(bus) {
             var _this = _super.call(this) || this;
-            _this.m_REG = new Uint8Array(4);
+            /**
+             * Registers.
+             */
+            // ------------ 2000
+            /* bit2 */
+            _this.offset32 = 0; // nt_addr offset value
+            /* bit3 */
+            _this.SPHeadAddr = 0; // sprite start adderess - 0: 0x0000, 1: 0x1000
+            /* bit4 */
+            _this.BGHeadAddr = 0; // background start address - 0: 0x0000, 1: 0x1000
+            /* bit5 */
+            _this._8x16 = false; // big sprite flag - 0: 8x8 sprite, 1: 8x16 sprite
+            /* bit7 */
+            _this.NMI = false; // NMI flag - 0: on, 1: off
+            // ------------ 2001
+            /* bit0 */
+            _this.BWColor = false; // [no uesd] - color flag - 0: color, 1:b&w 0
+            /* bit1 */
+            _this.BGL1Col = false; // [no uesd] - left 1 of background flag - 0: hidden, 1: show
+            /* bit2 */
+            _this.SPL1Col = false; // [no uesd] - left 1 of sprite flag - 0: hidden, 1: show
+            /* bit3 */
+            _this.hideBG = false; // background flag - 0: hidden, 1: show
+            /* bit4 */
+            _this.hideSP = false; // sprite flag - 0: hidden, 1: show
+            /* point[5-7] */
+            _this.lightness = 0; // [no uesd]
+            // ------------ 2002
+            /* bit4 */
+            _this.ignoreWrite = false; // [no uesd] - ignore writ to VRAM flag
+            /* bit5 */
+            _this.more8Sprite = false; // [no uesd] - scan over 8 sprites flag
+            /* bit6 */
+            _this.hit = false; // collision detection flag
+            /* bit7 */
+            _this.VBlank = false; // VBlank flag
+            // ------------ 2003
+            _this.reg2003 = 0;
+            // ------------ 2005 & 2006 shared flag
+            _this.toggle = false;
+            // ------------ 2006
+            _this.reg2006 = 0; // Counter
+            // ------------ 2007
+            _this.readBuffer = 0; // VRAM read buffer, read address #2007 is invalid in first
+            _this.scanline = 0; // Current Scan Line
+            _this.forcedVBlank = false; // Forced VBlank	
+            _this.regTemp = 0; // temporary register
+            _this.FV = 0; // fine vertical
+            _this.VT = 0; // vertical tile index
+            _this.HT = 0; // horizontal tile index
+            _this.V = 0; // vertical table index
+            _this.H = 0; // horizontal table index
+            _this.VH = 0;
+            _this.FH = 0; // fine horizontal
+            /**
+             * Temporary variables
+             */
+            _this.topX = 0;
+            _this.topY = 0;
+            _this.sp_H = 0;
+            _this.sp0_Y = 0;
+            _this.sp0_X = 0;
+            // name table
+            _this.nt_addr = 0;
+            // attribute table
+            _this.groupRow = 0;
+            _this.squareRow = 0;
+            _this.sq_index = 0;
+            _this.at_addr = 0;
+            // pattern table
+            _this.pt_addr = 0;
+            _this.pt0_data = 0;
+            _this.pt1_data = 0;
+            // point attributes
+            _this.point = 0;
+            _this.point_row = 0;
+            _this.l_bit_pal = 0; // lower image palette address
+            _this.u_bit_pal = 0; // upper image palette address
+            _this.pal_index = 0; // image palette address
+            _this.pal_data = 0; // image palette value
+            // sprite attributes
+            _this.pt0_row = 0;
+            _this.pt1_row = 0;
+            _this.pt_index = 0;
+            _this.sp_at = 0;
+            _this.foreground = false;
+            _this.flipH = false;
+            _this.flipV = false;
+            _this.fitX = 0;
+            _this.fitY = 0;
+            _this.bitX = 0;
+            _this.bitY = 0;
+            _this.bgPoint = 0;
+            _this.renderedFrames = 0; // rendered frames
+            _this.ENC = 0; // used time that enter NMI interrupt - 7 CC
+            _this.m_REG = new Int32Array(4);
             _this.bus = bus;
             _this.hideBG = true;
             _this.hideSP = true;
             //----------------------------------------------------
-            _this.VRAM = new Uint8Array(0x10000);
-            _this.SRAM = new Uint8Array(0x100);
-            _this.output = new Uint8Array(256 * 240);
+            _this.VRAM = new Int32Array(0x10000);
+            _this.SRAM = new Int32Array(0x100);
+            //this.output = new Int32Array(256 * 240);
             //----------------------------------------------------
-            _this.background = new Uint8Array(256 * 240);
-            _this.sprite0 = new Uint8Array(0x80);
-            _this.SM0 = new Uint8Array([0x03, 0x03, 0x0C, 0x0C, 0x03, 0x03, 0x0C, 0x0C, 0x30, 0x30, 0xC0, 0xC0, 0x30, 0x30, 0xC0, 0xC0]);
-            _this.SM1 = new Uint8Array([0, 0, 2, 2, 0, 0, 2, 2, 4, 4, 6, 6, 4, 4, 6, 6]);
+            _this.background = new Int32Array(256 * 240);
+            _this.sprite0 = new Int32Array(0x80);
+            _this.SM0 = new Int32Array([0x03, 0x03, 0x0C, 0x0C, 0x03, 0x03, 0x0C, 0x0C, 0x30, 0x30, 0xC0, 0xC0, 0x30, 0x30, 0xC0, 0xC0]);
+            _this.SM1 = new Int32Array([0, 0, 2, 2, 0, 0, 2, 2, 4, 4, 6, 6, 4, 4, 6, 6]);
             //----------------------------------------------------
-            _this.pt0_vt = new Uint8Array(16);
-            _this.pt1_vt = new Uint8Array(16);
+            _this.pt0_vt = new Int32Array(16);
+            _this.pt1_vt = new Int32Array(16);
             return _this;
         }
         /**
@@ -4672,8 +4745,8 @@ var anes;
             // 2.parse attributes
             this.u_bit_pal = this.sp_at & 0x03;
             this.foreground = !(this.sp_at & 0x20);
-            this.flipH = Boolean(this.sp_at & 0x40);
-            this.flipV = Boolean(this.sp_at & 0x80);
+            this.flipH = (this.sp_at & 0x40) > 0;
+            this.flipV = (this.sp_at & 0x80) > 0;
             if (this._8x16) {
                 if ((this.pt_index & 1) == 0) // even number
                  {
@@ -4803,8 +4876,8 @@ var anes;
                 // 2.parse attributes
                 this.u_bit_pal = this.sp_at & 0x03;
                 this.foreground = !(this.sp_at & 0x20); // foreground
-                this.flipH = Boolean(this.sp_at & 0x40);
-                this.flipV = Boolean(this.sp_at & 0x80);
+                this.flipH = (this.sp_at & 0x40) > 0;
+                this.flipV = (this.sp_at & 0x80) > 0;
                 if (this._8x16) {
                     if ((this.pt_index & 1) == 0) //even number
                      {
@@ -4978,11 +5051,11 @@ var anes;
         /**
          * Write data.
          */
-        PPU.prototype.w2 = function (address, value) {
+        PPU.prototype.w = function (address, value) {
             if (address == 0x2007) // VRAM data
              {
                 if (this.reg2006 >= 0x3F20) {
-                    console.log('PPU write 0x3F20');
+                    //console.log('PPU write 0x3F20');
                 }
                 else if (this.reg2006 >= 0x3F00) {
                     if (this.reg2006 % 0x10 == 0) // 0x3F00 or 0x3F10
@@ -5003,7 +5076,7 @@ var anes;
                     }
                 }
                 else if (this.reg2006 >= 0x3000) {
-                    console.log('PPU write 0x3000', this.scanline);
+                    //console.log('PPU write 0x3000', this.scanline);
                 }
                 else if (this.reg2006 >= 0x2000) {
                     if (this.bus.mirrorS) {
@@ -5102,13 +5175,13 @@ var anes;
             }
             else if (address == 0x2001) // control register 2		- 控制寄存器2
              {
-                this.BWColor = Boolean(value & 0x01);
-                this.BGL1Col = Boolean(value & 0x02);
-                this.SPL1Col = Boolean(value & 0x04);
+                this.BWColor = (value & 0x01) > 0;
+                this.BGL1Col = (value & 0x02) > 0;
+                this.SPL1Col = (value & 0x04) > 0;
                 this.hideBG = !(value & 0x08);
                 this.hideSP = !(value & 0x10);
                 this.lightness = (value & 0xE0) >> 5;
-                //console.log(SPL1Col,BGL1Col);
+                //console.log(SPL1Col, BGL1Col);
             }
             else if (address == 0x2000) // control register 1
              {
@@ -5117,8 +5190,8 @@ var anes;
                 this.offset32 = (value & 0x4) >> 2;
                 this.SPHeadAddr = (value & 0x08) && 0x1000;
                 this.BGHeadAddr = (value & 0x10) && 0x1000;
-                this._8x16 = Boolean(value & 0x20);
-                this.NMI = Boolean(value & 0x80);
+                this._8x16 = (value & 0x20) > 0;
+                this.NMI = (value & 0x80) > 0;
             }
             else {
                 console.log('unknown PPU write', address);
@@ -5139,6 +5212,10 @@ var anes;
          */
         function VM() {
             /**
+             * Frames.
+             */
+            this.frames = 0;
+            /**
              * Next scanline.
              */
             this.nextScanline = 0;
@@ -5149,9 +5226,9 @@ var anes;
             // Create palettes (Nes only supports 64-bit colors)
             this.palettes = [];
             // #0 palette is default palette(defined in NesDoc)
-            this.palettes.push(new Uint8Array([0xFF757575, 0xFF271B8F, 0xFF0000AB, 0xFF47009F, 0xFF8F0077, 0xFFAB0013, 0xFFA70000, 0xFF7F0B00, 0xFF432F00, 0xFF004700, 0xFF005100, 0xFF003F17, 0xFF1B3F5F, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFBCBCBC, 0xFF0073EF, 0xFF233BEF, 0xFF8300F3, 0xFFBF00BF, 0xFFE7005B, 0xFFDB2B00, 0xFFCB4F0F, 0xFF8B7300, 0xFF009700, 0xFF00AB00, 0xFF00933B, 0xFF00838B, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF3FBFFF, 0xFF5F97FF, 0xFFA78BFD, 0xFFF77BFF, 0xFFFF77B7, 0xFFFF7763, 0xFFFF9B3B, 0xFFF3BF3F, 0xFF83D313, 0xFF4FDF4B, 0xFF58F898, 0xFF00EBDB, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFFABE7FF, 0xFFC7D7FF, 0xFFD7CBFF, 0xFFFFC7FF, 0xFFFFC7DB, 0xFFFFBFB3, 0xFFFFDBAB, 0xFFFFE7A3, 0xFFE3FFA3, 0xFFABF3BF, 0xFFB3FFCF, 0xFF9FFFF3, 0xFF000000, 0xFF000000, 0xFF000000]));
+            this.palettes.push(new Int32Array([0xFF757575, 0xFF271B8F, 0xFF0000AB, 0xFF47009F, 0xFF8F0077, 0xFFAB0013, 0xFFA70000, 0xFF7F0B00, 0xFF432F00, 0xFF004700, 0xFF005100, 0xFF003F17, 0xFF1B3F5F, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFBCBCBC, 0xFF0073EF, 0xFF233BEF, 0xFF8300F3, 0xFFBF00BF, 0xFFE7005B, 0xFFDB2B00, 0xFFCB4F0F, 0xFF8B7300, 0xFF009700, 0xFF00AB00, 0xFF00933B, 0xFF00838B, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF3FBFFF, 0xFF5F97FF, 0xFFA78BFD, 0xFFF77BFF, 0xFFFF77B7, 0xFFFF7763, 0xFFFF9B3B, 0xFFF3BF3F, 0xFF83D313, 0xFF4FDF4B, 0xFF58F898, 0xFF00EBDB, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFFABE7FF, 0xFFC7D7FF, 0xFFD7CBFF, 0xFFFFC7FF, 0xFFFFC7DB, 0xFFFFBFB3, 0xFFFFDBAB, 0xFFFFE7A3, 0xFFE3FFA3, 0xFFABF3BF, 0xFFB3FFCF, 0xFF9FFFF3, 0xFF000000, 0xFF000000, 0xFF000000]));
             // #1 palette is used in many other emulators
-            this.palettes.push(new Uint8Array([0xFF7F7F7F, 0xFF2000B0, 0xFF2800B8, 0xFF6010A0, 0xFF982078, 0xFFB01030, 0xFFA03000, 0xFF784000, 0xFF485800, 0xFF386800, 0xFF386C00, 0xFF306040, 0xFF305080, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFBCBCBC, 0xFF4060F8, 0xFF4040FF, 0xFF9040F0, 0xFFD840C0, 0xFFD84060, 0xFFE05000, 0xFFC07000, 0xFF888800, 0xFF50A000, 0xFF48A810, 0xFF48A068, 0xFF4090C0, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF60A0FF, 0xFF5080FF, 0xFFA070FF, 0xFFF060FF, 0xFFFF60B0, 0xFFFF7830, 0xFFFFA000, 0xFFE8D020, 0xFF98E800, 0xFF70F040, 0xFF70E090, 0xFF60D0E0, 0xFF606060, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF90D0FF, 0xFFA0B8FF, 0xFFC0B0FF, 0xFFE0B0FF, 0xFFFFB8E8, 0xFFFFC8B8, 0xFFFFD8A0, 0xFFFFF090, 0xFFC8F080, 0xFFA0F0A0, 0xFFA0FFC8, 0xFFA0FFF0, 0xFFA0A0A0, 0xFF000000, 0xFF000000]));
+            this.palettes.push(new Int32Array([0xFF7F7F7F, 0xFF2000B0, 0xFF2800B8, 0xFF6010A0, 0xFF982078, 0xFFB01030, 0xFFA03000, 0xFF784000, 0xFF485800, 0xFF386800, 0xFF386C00, 0xFF306040, 0xFF305080, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFBCBCBC, 0xFF4060F8, 0xFF4040FF, 0xFF9040F0, 0xFFD840C0, 0xFFD84060, 0xFFE05000, 0xFFC07000, 0xFF888800, 0xFF50A000, 0xFF48A810, 0xFF48A068, 0xFF4090C0, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF60A0FF, 0xFF5080FF, 0xFFA070FF, 0xFFF060FF, 0xFFFF60B0, 0xFFFF7830, 0xFFFFA000, 0xFFE8D020, 0xFF98E800, 0xFF70F040, 0xFF70E090, 0xFF60D0E0, 0xFF606060, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF90D0FF, 0xFFA0B8FF, 0xFFC0B0FF, 0xFFE0B0FF, 0xFFFFB8E8, 0xFFFFC8B8, 0xFFFFD8A0, 0xFFFFF090, 0xFFC8F080, 0xFFA0F0A0, 0xFFA0FFC8, 0xFFA0FFF0, 0xFFA0A0A0, 0xFF000000, 0xFF000000]));
             // reset
             this.reset();
             // set default palette
@@ -5161,20 +5238,14 @@ var anes;
          * Shut down.
          */
         VM.prototype.shut = function () {
-            this.keyTimer.cancel();
-            this.keyTimer = null;
-            //TV.removeEventListener(Event.ENTER_FRAME, onUpdateBitmap);
-            this.TV = null;
-            //keyInputer.removeEventListener(KeyboardEvent.KEY_DOWN, onKeyDown);
-            //keyInputer.removeEventListener(KeyboardEvent.KEY_UP, onKeyUp);
-            //keyInputer = null;
+            this._image = null;
         };
         /**
-         * 1.Connect TV.
+         * 1.Connect image of TV.
          */
-        VM.prototype.connect = function (TV) {
-            this.TV = TV;
-            //this.TV.addEventListener(Event.ENTER_FRAME, onUpdateBitmap);
+        VM.prototype.connect = function (image) {
+            this._image = image;
+            this.bus.ppu.output = this._image.data;
         };
         /**
          * 2.insert cartridge
@@ -5193,10 +5264,10 @@ var anes;
             this.bus.numPRom16K = rom[4]; // Program ROM number,everyone is 16KB
             this.bus.numPRom32K = rom[4] / 2;
             if (rom[4] > 0) {
-                this.bus.PRGBlock = new Uint8Array(rom[4] * 0x4000);
+                this.bus.PRGBlock = new Int32Array(rom[4] * 0x4000);
             }
             if (rom[5] > 0) {
-                this.bus.PatternTable = new Uint8Array(rom[5] * 0x2000);
+                this.bus.PatternTable = new Int32Array(rom[5] * 0x2000);
             }
             // byte5
             this.bus.numVRom1K = rom[5] * 8;
@@ -5235,12 +5306,26 @@ var anes;
         };
         /**
          * 3.Insert Joypay.
-        public insertJoypay(keyInputer: EventDispatcher, P1_r: number = 68, P1_l: number = 65, P1_u: number = 87, P1_d: number = 83, P1_se: number = 70, P1_st: number = 72, P1_b: number = 74, P1_a: number = 75, P1_b2: number = 85, P1_a2: number = 73, P2_r: number = 39, P2_l: number = 37, P2_u: number = 38, P2_d: number = 40, P2_b: number = 97, P2_a: number = 98, P2_b2: number = 100, P2_a2: number = 101): void
-        {
-            this.keyInputer = keyInputer;
-            this.keyInputer.addEventListener(KeyboardEvent.KEY_DOWN, onKeyDown);
-            this.keyInputer.addEventListener(KeyboardEvent.KEY_UP, onKeyUp);
-
+         */
+        VM.prototype.insertJoypay = function (P1_r, P1_l, P1_u, P1_d, P1_se, P1_st, P1_b, P1_a, P1_b2, P1_a2, P2_r, P2_l, P2_u, P2_d, P2_b, P2_a, P2_b2, P2_a2) {
+            if (P1_r === void 0) { P1_r = 68; }
+            if (P1_l === void 0) { P1_l = 65; }
+            if (P1_u === void 0) { P1_u = 87; }
+            if (P1_d === void 0) { P1_d = 83; }
+            if (P1_se === void 0) { P1_se = 70; }
+            if (P1_st === void 0) { P1_st = 72; }
+            if (P1_b === void 0) { P1_b = 74; }
+            if (P1_a === void 0) { P1_a = 75; }
+            if (P1_b2 === void 0) { P1_b2 = 85; }
+            if (P1_a2 === void 0) { P1_a2 = 73; }
+            if (P2_r === void 0) { P2_r = 39; }
+            if (P2_l === void 0) { P2_l = 37; }
+            if (P2_u === void 0) { P2_u = 38; }
+            if (P2_d === void 0) { P2_d = 40; }
+            if (P2_b === void 0) { P2_b = 97; }
+            if (P2_a === void 0) { P2_a = 98; }
+            if (P2_b2 === void 0) { P2_b2 = 100; }
+            if (P2_a2 === void 0) { P2_a2 = 101; }
             this.P1_r = P1_r;
             this.P1_l = P1_l;
             this.P1_u = P1_u;
@@ -5251,7 +5336,6 @@ var anes;
             this.P1_a = P1_a;
             this.P1_b2 = P1_b2;
             this.P1_a2 = P1_a2;
-
             this.P2_r = P2_r;
             this.P2_l = P2_l;
             this.P2_u = P2_u;
@@ -5260,48 +5344,46 @@ var anes;
             this.P2_a = P2_a;
             this.P2_b2 = P2_b2;
             this.P2_a2 = P2_a2;
-
-            // 开启定时器
-            keyTimer.addEventListener(TimerEvent.TIMER, onUpdateKey);
-            keyTimer.start();
-        }
-         */
+        };
         /**
          * 按键输入.
-        private function onUpdateKey(e: TimerEvent): void
-        {
-            if (stop == true)
-            {
+         */
+        VM.prototype.updateKeys = function () {
+            if (this.stop == true) {
                 return;
             }
             // 初始化按键信号
-            pulse1: number;
-            pulse2: number;
-            B1_bb: number = B1_b2 ? (B1_bt ^= 2) : B1_b;
-            B1_aa: number = B1_a2 ? (B1_at ^= 1) : B1_a;
-            B2_bb: number = B2_b2 ? (B2_bt ^= 2) : B2_b;
-            B2_aa: number = B2_a2 ? (B2_at ^= 1) : B2_a;
-            pulse1 = B1_aa | B1_bb | B1_se | B1_st | B1_u | B1_d | B1_l | B1_r;
-            pulse2 = B2_aa | B2_bb | B2_u | B2_d | B2_l | B2_r;
+            var pulse1;
+            var pulse2;
+            var B1_bb = this.B1_b2 ? (this.B1_bt ^= 2) : this.B1_b;
+            var B1_aa = this.B1_a2 ? (this.B1_at ^= 1) : this.B1_a;
+            var B2_bb = this.B2_b2 ? (this.B2_bt ^= 2) : this.B2_b;
+            var B2_aa = this.B2_a2 ? (this.B2_at ^= 1) : this.B2_a;
+            pulse1 = B1_aa | B1_bb | this.B1_se | this.B1_st | this.B1_u | this.B1_d | this.B1_l | this.B1_r;
+            pulse2 = B2_aa | B2_bb | this.B2_u | this.B2_d | this.B2_l | this.B2_r;
+            //if (pulse1 != 0)
+            //{
+            //	console.log(pulse1);
+            //}
             // 输入信号
-            bus.joypad.dev0 &= 0xFFFFFF00;
-            bus.joypad.dev0 |= pulse1 & 0xFF;
-            bus.joypad.dev1 &= 0xFFFFFF00;
-            bus.joypad.dev1 |= pulse2 & 0xFF;
-        }
-         */
+            this.bus.joypad.dev0 &= 0xFFFFFF00;
+            this.bus.joypad.dev0 |= pulse1 & 0xFF;
+            this.bus.joypad.dev1 &= 0xFFFFFF00;
+            this.bus.joypad.dev1 |= pulse2 & 0xFF;
+        };
         /**
          * 图象输出.
-        private function onUpdateBitmap(e: Event): void
-        {
-            if (stop == true)
-            {
+         */
+        VM.prototype.onFrame = function () {
+            ++this.frames;
+            if (this.stop) {
                 return;
             }
             // output image
-            TV.bitmapData.lock();
-            TV.bitmapData.setVector(TV.bitmapData.rect, bus.ppu.output);
-            TV.bitmapData.unlock();
+            //this._image.data = this.bus.ppu.output;
+            //image.bitmapData.lock();
+            //image.bitmapData.setVector(image.bitmapData.rect, bus.ppu.output);
+            //image.bitmapData.unlock();
             // remark:NTSC mode
             // PPU cycle is 21.48MHz divide by 4
             // one PPU clock cycle = three CPU clock cycle
@@ -5313,49 +5395,40 @@ var anes;
             // 113.85321246819338422391857506361
             // 85.47337944826248199801511793631
             // 28.37983301993090222590345712729
-
             // because of DMA,so VM maybe scan multi-line in one times
             // 因为DMA,所以可能一次扫描多条扫描线
-
-            a: number = getTimer();
-            bankCC: number = 0;
-            for (; ;)
-            {
-                // 1.CPU CC of HDraw of need to execute(执行HDraw相应的CPU时钟频率)
+            var bankCC = 0;
+            for (;;) {
+                // 1.CPU CC corresponding to HDraw
                 bankCC = 85;
-                if (bus.cpu.currentCC < bankCC)
-                {
-                    if (bus.cpu.exec(number(bankCC - bus.cpu.currentCC)) == false)
-                    {
+                if (this.bus.cpu.onceExecedCC < bankCC) {
+                    if (this.bus.cpu.exec(bankCC - this.bus.cpu.onceExecedCC) == false) {
                         return;
                     }
                 }
-                // 3.reset CPU CC(重置CPU时钟频率)
-                bus.cpu.currentCC -= bankCC;
-                // 4.render scanline(渲染扫描线)
-                nextScanline = bus.ppu.renderLine();
-                // 5.CPU CC of HBlank of need to execute(执行HBalnk对应的CPU时钟频率)
+                // 3.reset CPU CC
+                this.bus.cpu.onceExecedCC -= bankCC;
+                // 4.render scanline
+                this.nextScanline = this.bus.ppu.renderLine();
+                // 5.CPU CC corresponding to HBlank
                 bankCC = 28;
-                if (bus.cpu.currentCC < bankCC)
-                {
-                    if (bus.cpu.exec(number(bankCC - bus.cpu.currentCC)) == false)
-                    {
+                if (this.bus.cpu.onceExecedCC < bankCC) {
+                    if (this.bus.cpu.exec(bankCC - this.bus.cpu.onceExecedCC) == false) {
                         return;
                     }
                 }
-                // 7.reset CPU CC(重置CPU时钟频率)
-                bus.cpu.currentCC -= bankCC;
-                // 所有扫描线渲染结束,一帧结束
-                if (nextScanline == 0)
-                {
-                    // 声音处理
-                    bus.apu.renderSamples(735);
+                // 7.reset CPU CC
+                this.bus.cpu.onceExecedCC -= bankCC;
+                // 8.All scanlines are complete
+                if (this.nextScanline == 0) {
+                    //this.bus.apu.renderSamples(735);
                     break;
                 }
             }
-            //trace(_ii++,bus.cpu.cpuRunCC);
-        }
-         */
+            if (this.frames % 2 == 0) {
+                this.updateKeys();
+            }
+        };
         /**
          * Reset.
          */
@@ -5368,866 +5441,126 @@ var anes;
             this.bus = new anes.Bus();
             this.bus.pal = tmp;
         };
+        /**
+         * @private
+         */
+        VM.prototype.onKeyDown = function (keyCode) {
+            console.log(keyCode);
+            if (keyCode == this.P1_r) {
+                this.B1_r = 128;
+            }
+            else if (keyCode == this.P1_l) {
+                this.B1_l = 64;
+            }
+            else if (keyCode == this.P1_d) {
+                this.B1_d = 32;
+            }
+            else if (keyCode == this.P1_u) {
+                this.B1_u = 16;
+            }
+            else if (keyCode == this.P1_st) {
+                this.B1_st = 8;
+            }
+            else if (keyCode == this.P1_se) {
+                this.B1_se = 4;
+            }
+            else if (keyCode == this.P1_b) {
+                this.B1_b = 2;
+            }
+            else if (keyCode == this.P1_a) {
+                this.B1_a = 1;
+            }
+            else if (keyCode == this.P1_b2) {
+                this.B1_b2 = 1;
+            }
+            else if (keyCode == this.P1_a2) {
+                this.B1_a2 = 1;
+            }
+            else if (keyCode == this.P2_r) {
+                this.B2_r = 128;
+            }
+            else if (keyCode == this.P2_l) {
+                this.B2_l = 64;
+            }
+            else if (keyCode == this.P2_d) {
+                this.B2_d = 32;
+            }
+            else if (keyCode == this.P2_u) {
+                this.B2_u = 16;
+            }
+            else if (keyCode == this.P2_b) {
+                this.B2_b = 2;
+            }
+            else if (keyCode == this.P2_a) {
+                this.B2_a = 1;
+            }
+            else if (keyCode == this.P2_b2) {
+                this.B2_b2 = 1;
+            }
+            else if (keyCode == this.P2_a2) {
+                this.B2_a2 = 1;
+            }
+        };
+        /**
+         * @private
+         */
+        VM.prototype.onKeyUp = function (keyCode) {
+            if (keyCode == this.P1_r) {
+                this.B1_r = 0;
+            }
+            else if (keyCode == this.P1_l) {
+                this.B1_l = 0;
+            }
+            else if (keyCode == this.P1_d) {
+                this.B1_d = 0;
+            }
+            else if (keyCode == this.P1_u) {
+                this.B1_u = 0;
+            }
+            else if (keyCode == this.P1_st) {
+                this.B1_st = 0;
+            }
+            else if (keyCode == this.P1_se) {
+                this.B1_se = 0;
+            }
+            else if (keyCode == this.P1_b) {
+                this.B1_b = 0;
+            }
+            else if (keyCode == this.P1_a) {
+                this.B1_a = 0;
+            }
+            else if (keyCode == this.P1_b2) {
+                this.B1_b2 = 0;
+            }
+            else if (keyCode == this.P1_a2) {
+                this.B1_a2 = 0;
+            }
+            else if (keyCode == this.P2_r) {
+                this.B2_r = 0;
+            }
+            else if (keyCode == this.P2_l) {
+                this.B2_l = 0;
+            }
+            else if (keyCode == this.P2_d) {
+                this.B2_d = 0;
+            }
+            else if (keyCode == this.P2_u) {
+                this.B2_u = 0;
+            }
+            else if (keyCode == this.P2_b) {
+                this.B2_b = 0;
+            }
+            else if (keyCode == this.P2_a) {
+                this.B2_a = 0;
+            }
+            else if (keyCode == this.P2_b2) {
+                this.B2_b2 = 0;
+            }
+            else if (keyCode == this.P2_a2) {
+                this.B2_a2 = 0;
+            }
+        };
         return VM;
     }());
     anes.VM = VM;
 })(anes || (anes = {}));
-/**
- * 1. Copyright (c) 2022 amin2312
- * 2. Version 1.0.0
- * 3. MIT License
- *
- * ATween is a easy, fast and tiny tween library.=
- */
-var ATween = /** @class */ (function () {
-    /**
-     * Constructor.
-     */
-    function ATween(target) {
-        /**
-         * Elapsed time of tween(unit: millisecond).
-         **/
-        this.elapsedMs = 0;
-        /**
-         * Elapsed percentage of tween.
-         **/
-        this.elapsedPercentage = 0;
-        this._initedTarget = false;
-        this._attachment = null;
-        this._convertor = null;
-        this._data = null;
-        this._repeatNextStartMs = 0;
-        this._repeatRefs = 0; // references, reference count
-        this._repeatSteps = 0;
-        this._repeatDelayMs = 0;
-        this._updateSteps = 0;
-        this._isFirstUpdate = true;
-        this._startMs = 0;
-        this._delayMs = 0;
-        this._durationMs = 1; // can't be 0
-        this._repeatTimes = 0;
-        this._yoyo = false;
-        this._isCompleted = false;
-        this._pause = false;
-        this._isRetained = false;
-        this._easing = null;
-        /**
-         * The callback functions.
-         **/
-        this._onStartCallback = null;
-        this._isStarted = false;
-        this._onStartCallbackFired = false;
-        this._onUpdateCallback = null;
-        this._onCancelCallback = null;
-        this._onCompleteCallback = null;
-        this._onCompleteParams = null;
-        this._onRepeatCallback = null;
-        this._target = target;
-    }
-    /**
-     * Add a tween to global manager.
-     */
-    ATween._add = function (ins) {
-        ATween._instances.push(ins);
-    };
-    /**
-     * Delete a tween from global manager.
-     */
-    ATween._del = function (ins) {
-        var i = ATween._instances.indexOf(ins);
-        if (i != -1) {
-            ATween._instances.splice(i, 1);
-        }
-    };
-    /**
-     * Updates all tweens by the specified time.
-     * @param ms millisecond unit
-     */
-    ATween.updateAll = function (ms) {
-        if (ATween._instances.length == 0) {
-            return;
-        }
-        if (ATween.stop == true) {
-            return;
-        }
-        var clone = ATween._instances.concat([]);
-        var len = clone.length;
-        for (var i = 0; i < len; i++) {
-            var ins = clone[i];
-            if (ins._pause == false && ins.update(ms) == false) {
-                ATween._del(ins);
-            }
-        }
-    };
-    /**
-     * Kill all tweens.
-     * @remarks
-     * WHEN the tween is retain, then it will be ignored.
-     * @param withComplete Specifies whether to call complete function.
-     */
-    ATween.killAll = function (withComplete) {
-        if (withComplete === void 0) { withComplete = false; }
-        var clone = ATween._instances.concat([]);
-        var len = clone.length;
-        for (var i = 0; i < len; i++) {
-            var ins = clone[i];
-            ins.cancel(withComplete);
-        }
-    };
-    /**
-     * Kill all tweens of specified the target or attachment.
-     * @param targetOrAttachment the target or attachment.
-     * @param withComplete Specifies whether to call complete function.
-     * @return Number of killed instances
-     */
-    ATween.killTweens = function (targetOrAttachment, withComplete) {
-        if (withComplete === void 0) { withComplete = false; }
-        var clone = ATween._instances.concat([]);
-        var len = clone.length;
-        var num = 0;
-        for (var i = 0; i < len; i++) {
-            var ins = clone[i];
-            if (ins._target == targetOrAttachment || ins._attachment == targetOrAttachment) {
-                ins.cancel(withComplete);
-                num++;
-            }
-        }
-        return num;
-    };
-    /**
-     * Check the target or attachment is tweening.
-     * @param targetOrAttachment the target or attachment.
-     */
-    ATween.isTweening = function (targetOrAttachment) {
-        var instances = ATween._instances;
-        var len = instances.length;
-        for (var i = 0; i < len; i++) {
-            var ins = instances[i];
-            if (ins._target == targetOrAttachment || ins._attachment == targetOrAttachment) {
-                return true;
-            }
-        }
-        return false;
-    };
-    /**
-     * Checks whether has installed frame trigger in current environment.
-     */
-    ATween.checkInstalled = function () {
-        if (!ATween._isInstalled) {
-            ATween._isInstalled = true;
-            if (window != null && window.requestAnimationFrame != null) {
-                var lastTime = 0;
-                var onFrame = function (now) {
-                    var ms = now - lastTime;
-                    lastTime = now;
-                    ATween.updateAll(ms);
-                    window.requestAnimationFrame(onFrame);
-                };
-                lastTime = window.performance.now();
-                onFrame(lastTime);
-            }
-            else {
-                console.log('You need to manually call "ATween.updateAll" function update all tweens');
-            }
-        }
-    };
-    /**
-     * Create a tween.
-     * @param target the targer object.
-     * @param durationMs set duration, not including any repeats or delays.
-     * @param delayMs set initial delay which is the length of time in ms before the tween should begin.
-     * @return Tween instance
-     */
-    ATween.newTween = function (target, durationMs, delayMs) {
-        if (delayMs === void 0) { delayMs = 0; }
-        ATween.checkInstalled();
-        var t = new ATween(target);
-        if (durationMs < 0) {
-            durationMs = 1;
-        }
-        t._durationMs = durationMs;
-        t._delayMs = delayMs;
-        return t;
-    };
-    /**
-     * Create a once timer.
-     * @remarks
-     * It will AUTO start, you don't need to call "start()" function.
-     * @param intervalMs interval millisecond
-     * @param onCompleteCallback The callback function when completion.
-     * @param onCompleteParams The callback parameters when completion.
-     * @return Tween instance
-     */
-    ATween.newOnce = function (intervalMs, onCompleteCallback, onCompleteParams) {
-        if (onCompleteParams === void 0) { onCompleteParams = null; }
-        ATween.checkInstalled();
-        var t = new ATween(null);
-        t._delayMs = intervalMs;
-        t.onComplete(onCompleteCallback, onCompleteParams);
-        t.start();
-        return t;
-    };
-    /**
-     * Create a timer.
-     * @remarks
-     * It will AUTO start, you don't need to call "start()" function.
-     * @param intervalMs interval millisecond
-     * @param times the repeat times(-1 is infinity)
-     * @param onRepeatCallback  if return FASLE, then will cancel this timer.
-     * @param onCompleteCallback The callback function when completion.
-     * @param onCompleteParams The callback parameters when completion.
-     * @return Tween instance
-     **/
-    ATween.newTimer = function (intervalMs, times, onRepeatCallback, onCompleteCallback, onCompleteParams) {
-        if (onCompleteCallback === void 0) { onCompleteCallback = null; }
-        if (onCompleteParams === void 0) { onCompleteParams = null; }
-        ATween.checkInstalled();
-        var t = new ATween(null);
-        t._delayMs = intervalMs;
-        t.repeat(times);
-        t.onRepeat(onRepeatCallback);
-        t.onComplete(onCompleteCallback, onCompleteParams);
-        t.start();
-        return t;
-    };
-    /**
-     * Start the tween/timer.
-     * @return Tween instance
-     */
-    ATween.prototype.start = function () {
-        if (this._isStarted) {
-            return this;
-        }
-        this._isStarted = true;
-        ATween._add(this);
-        this.elapsedMs = 0;
-        this._isCompleted = false;
-        this._onStartCallbackFired = false;
-        this._repeatNextStartMs = 0;
-        this._startMs = this._delayMs;
-        this._isFirstUpdate = true;
-        if (this._delayMs == 0 && this._target != null) {
-            this.initTarget();
-        }
-        return this;
-    };
-    /**
-     * Init target.
-     */
-    ATween.prototype.initTarget = function () {
-        if (this._initedTarget) {
-            return;
-        }
-        this._srcVals = {};
-        this._revVals = {};
-        for (var property in this._dstVals) {
-            var curVal;
-            if (this._target.get_tween_prop != null) {
-                curVal = this._target.get_tween_prop(property);
-            }
-            else {
-                curVal = this._target[property];
-            }
-            var dstVal = this._dstVals[property];
-            if (typeof (dstVal) != 'number') {
-                throw "Unknown dest value:" + dstVal;
-            }
-            // !! Convert Empty value(null, false, '') to 0
-            curVal *= 1.0;
-            // set source value
-            this._srcVals[property] = curVal;
-            // set reverse value
-            this._revVals[property] = curVal;
-        }
-        this._initedTarget = true;
-    };
-    /**
-     * Update target.
-     **/
-    ATween.prototype.updateTarget = function (percent, ignoreCallback) {
-        if (ignoreCallback === void 0) { ignoreCallback = false; }
-        if (this._target == null) {
-            return;
-        }
-        var ePercent = percent;
-        var fnE = this._easing;
-        if (fnE != null) {
-            ePercent = fnE(percent);
-        }
-        for (var property in this._srcVals) {
-            var curVal = this._srcVals[property];
-            if (curVal == null) {
-                continue;
-            }
-            var startVal = curVal;
-            var endVal = this._dstVals[property];
-            var newVal;
-            if (percent >= 1) {
-                newVal = endVal;
-            }
-            else {
-                newVal = startVal + (endVal - startVal) * ePercent;
-            }
-            if (this._target.set_tween_prop != null) {
-                this._target.set_tween_prop(property, newVal);
-            }
-            else {
-                this._target[property] = newVal;
-            }
-            // sync value to attachment object
-            if (this._attachment != null) {
-                var syncVal;
-                var fnC = this._convertor;
-                if (fnC != null) {
-                    syncVal = fnC(newVal, startVal, endVal, ePercent, property);
-                }
-                else {
-                    syncVal = Math.floor(newVal);
-                }
-                this._attachment.style.setProperty(property, syncVal);
-            }
-        }
-        // [Callback Handler]
-        if (ignoreCallback == false && this._onUpdateCallback != null) {
-            this._updateSteps++;
-            var cb = this._onUpdateCallback;
-            cb.call(this, percent, this._updateSteps);
-        }
-    };
-    /**
-     * Update tween by the specified time.
-     * @param ms millisecond unit
-     */
-    ATween.prototype.update = function (ms) {
-        this.elapsedMs += ms;
-        if (this._repeatNextStartMs != 0) {
-            if (this.elapsedMs >= this._repeatNextStartMs) {
-                this._repeatNextStartMs = 0;
-                if (this._yoyo == false) {
-                    this.updateTarget(0);
-                }
-            }
-        }
-        if (this.elapsedMs < this._startMs) {
-            return true;
-        }
-        // init target
-        if (this._target != null && this._initedTarget == false) {
-            this.initTarget();
-        }
-        // [Callback Handler]
-        if (this._onStartCallbackFired == false) {
-            this._onStartCallbackFired = true;
-            if (this._onStartCallback != null) {
-                var cbS = this._onStartCallback;
-                cbS.call(this);
-            }
-        }
-        // update percent
-        if (this._isFirstUpdate) {
-            this.elapsedMs = this._startMs; // set unified time
-            this._isFirstUpdate = false;
-        }
-        this.elapsedPercentage = (this.elapsedMs - this._startMs) / this._durationMs;
-        if (ms >= 0x7FFFFFFF || this.elapsedPercentage > 1 || this._durationMs == 1) {
-            this.elapsedPercentage = 1;
-        }
-        // update target
-        this.updateTarget(this.elapsedPercentage);
-        // end processing
-        if (this.elapsedPercentage == 1) {
-            if (this._repeatRefs != 0) {
-                this._repeatSteps++;
-                this._repeatRefs--;
-                // reset target properties
-                if (this._target != null) {
-                    for (var property in this._revVals) {
-                        var valueB = this._dstVals[property];
-                        if (this._yoyo == true) {
-                            var tmp = this._revVals[property];
-                            this._revVals[property] = valueB;
-                            this._dstVals[property] = tmp;
-                        }
-                        this._srcVals[property] = this._revVals[property];
-                    }
-                }
-                // reset time
-                this._repeatNextStartMs = this.elapsedMs + this._repeatDelayMs;
-                this._startMs = this._repeatNextStartMs + this._delayMs;
-                this._isFirstUpdate = true;
-                // [Callback Handler]
-                if (this._onRepeatCallback != null) {
-                    var cbR = this._onRepeatCallback;
-                    var rzl = cbR.call(this, this._repeatSteps);
-                    if (rzl === false) {
-                        this._repeatRefs = 0;
-                    }
-                }
-            }
-            if (this._repeatRefs == 0) {
-                this._isCompleted = true;
-                // [Callback Handler]
-                if (this._onCompleteCallback != null) {
-                    var cbC = this._onCompleteCallback;
-                    cbC.apply(this, this._onCompleteParams);
-                }
-                return false;
-            }
-            return true;
-        }
-        return true;
-    };
-    /**
-     * Cancel this tween.
-     * @param withComplete Specifies whether to call complete function.
-     * @return Tween instance
-     */
-    ATween.prototype.cancel = function (withComplete) {
-        if (withComplete === void 0) { withComplete = false; }
-        if (this._isCompleted == true || this._isRetained == true) {
-            return;
-        }
-        this._repeatRefs = 0;
-        if (withComplete == true) {
-            this.update(0x7FFFFFFF);
-        }
-        ATween._del(this);
-        this._isCompleted = true;
-        // [Callback Handler]
-        if (this._onCancelCallback != null) {
-            var cb = this._onCancelCallback;
-            cb.call(this);
-        }
-    };
-    /**
-     * The destination values that the target wants to achieves.
-     * @param endValues destination values.
-     * @return Tween instance
-     */
-    ATween.prototype.to = function (endValues) {
-        this._dstVals = endValues;
-        return this;
-    };
-    /**
-     * Attach to HTMLElement element (The tween value will auto sync to this element).
-     * @param obj HTMLElement or element id
-     * @param convert You can use it to convert the current value to its final form, e.g. convert "int" to "rgb"
-     * @return Tween instance
-     */
-    ATween.prototype.attach = function (obj, convert) {
-        if (convert === void 0) { convert = null; }
-        var t;
-        if (obj instanceof HTMLElement) {
-            t = obj;
-        }
-        else {
-            t = document.getElementById(obj);
-        }
-        this._attachment = t;
-        this._convertor = convert;
-        return this;
-    };
-    /**
-     * Store arbitrary data associated with this tween.
-     */
-    ATween.prototype.data = function (v) {
-        this._data = v;
-        return this;
-    };
-    /**
-     * Set repeat execution.
-     * @param times the repeat times(-1 is infinity)
-     * @param yoyo where true causes the tween to go back and forth, alternating backward and forward on each repeat.
-     * @param delayMs delay trigger time
-     * @return Tween instance
-     */
-    ATween.prototype.repeat = function (times, yoyo, delayMs) {
-        if (yoyo === void 0) { yoyo = false; }
-        if (delayMs === void 0) { delayMs = 0; }
-        this._yoyo = yoyo;
-        this._repeatTimes = times;
-        this._repeatRefs = times;
-        this._repeatDelayMs = delayMs;
-        return this;
-    };
-    /**
-     * Calls the "onRepeat" function immediately(repeat times is 0).
-     * @remark
-     * IF you need to init the environment, then it's a good choice.
-     * @return Tween instance
-     */
-    ATween.prototype.callRepeat = function () {
-        var cb = this._onRepeatCallback;
-        var rzl = cb.call(this, 0);
-        if (rzl == false) {
-            this.release().cancel();
-        }
-        return this;
-    };
-    /**
-     * Set easing function.
-     * @return Tween instance
-     */
-    ATween.prototype.easing = function (func) {
-        this._easing = func;
-        return this;
-    };
-    /**
-     * Keep this tween, "killAll" has no effect on it.
-     * @return Tween instance
-     */
-    ATween.prototype.retain = function () {
-        this._isRetained = true;
-        return this;
-    };
-    /**
-     * Release this retained tween.
-     * @return Tween instance
-     */
-    ATween.prototype.release = function () {
-        this._isRetained = false;
-        return this;
-    };
-    /**
-     * Indicates whether the tween is keeping.
-     * @return Tween instance
-     */
-    ATween.prototype.isRetained = function () {
-        return this._isRetained;
-    };
-    /**
-     * Set pause state.
-     */
-    ATween.prototype.setPause = function (v) {
-        this._pause = v;
-    };
-    /**
-     * Get pause state.
-     */
-    ATween.prototype.getPause = function () {
-        return this._pause;
-    };
-    /**
-     * Get repeat times.
-     */
-    ATween.prototype.getRepeatTimes = function () {
-        return this._repeatTimes;
-    };
-    /**
-     * Get target.
-     */
-    ATween.prototype.getTarget = function () {
-        return this._target;
-    };
-    /**
-     * Get attachment.
-     */
-    ATween.prototype.getAttachment = function () {
-        return this._attachment;
-    };
-    /**
-     * Get data.
-     */
-    ATween.prototype.getData = function () {
-        return this._data;
-    };
-    /**
-     * Set the callback function when startup.
-     * @return Tween instance
-     */
-    ATween.prototype.onStart = function (callback) {
-        this._onStartCallback = callback;
-        return this;
-    };
-    /**
-     * Set the callback function when updating.
-     * @return Tween instance
-     */
-    ATween.prototype.onUpdate = function (callback) {
-        this._onUpdateCallback = callback;
-        return this;
-    };
-    /**
-     * Set the callback function when completion.
-     * @return Tween instance
-     */
-    ATween.prototype.onComplete = function (callback, params) {
-        if (params === void 0) { params = null; }
-        this._onCompleteCallback = callback;
-        this._onCompleteParams = params;
-        if (this._onCompleteParams != null) {
-            this._onCompleteParams = this._onCompleteParams.concat([]);
-        }
-        return this;
-    };
-    /**
-     * Set the callback function when canceled.
-     * @return Tween instance
-     */
-    ATween.prototype.onCancel = function (callback) {
-        this._onCancelCallback = callback;
-        return this;
-    };
-    /**
-     * Set the callback function when repeating.
-     * @remarks
-     * if return FASLE, then will cancel this timer.
-     * @return Tween instance
-     */
-    ATween.prototype.onRepeat = function (callback) {
-        this._onRepeatCallback = callback;
-        return this;
-    };
-    /**
-     * Simplified function for "to" - set alpha.
-     */
-    ATween.prototype.toAlpha = function (v) {
-        return this.to({ alpha: v });
-    };
-    /**
-     * Simplified function for "to" - set crood x.
-     */
-    ATween.prototype.toX = function (v) {
-        return this.to({ x: v });
-    };
-    /**
-     * Simplified function for "to" - set crood y.
-     */
-    ATween.prototype.toY = function (v) {
-        return this.to({ y: v });
-    };
-    /**
-     * Simplified function for "to" - set crood x and y.
-     */
-    ATween.prototype.toXY = function (a, b) {
-        return this.to({ x: a, y: b });
-    };
-    /**
-     * Specifies whether to stop all tweens.
-     */
-    ATween.stop = false;
-    /**
-     * The manager for all tween instances.
-     */
-    ATween._instances = new Array();
-    /**
-     * Indicates whether has installed in current environment.
-     */
-    ATween._isInstalled = false;
-    return ATween;
-}());
-/**
- * 1. Copyright (c) 2022 amin2312
- * 2. Version 1.0.0
- * 3. MIT License
- *
- * Tween Convertor.
- *
- * IF you don't need custom conversion feature,
- * you can compile the project without this file.
- */
-var ATweenConvertor = /** @class */ (function () {
-    function ATweenConvertor() {
-    }
-    /**
-     * css unit function.
-     */
-    ATweenConvertor.css_unit = function (curValue, startValue, endValue, percent, property) {
-        return curValue + 'px';
-    };
-    /**
-     * css gradient convert function
-     */
-    ATweenConvertor.css_gradient = function (curValue, startValue, endValue, percent, property) {
-        var R0 = (startValue & 0xFF0000) >> 16;
-        var G0 = (startValue & 0x00FF00) >> 8;
-        var B0 = (startValue & 0x0000FF);
-        var R1 = (endValue & 0xFF0000) >> 16;
-        var G1 = (endValue & 0x00FF00) >> 8;
-        var B1 = (endValue & 0x0000FF);
-        var R = Math.floor(R1 * percent + (1 - percent) * R0);
-        var G = Math.floor(G1 * percent + (1 - percent) * G0);
-        var B = Math.floor(B1 * percent + (1 - percent) * B0);
-        var color = (R << 16) | (G << 8) | B;
-        var s = color.toString(16);
-        for (var i = s.length; i < 6; i++) {
-            s = '0' + s;
-        }
-        return "#" + s;
-    };
-    return ATweenConvertor;
-}());
-/**
- * 1. Copyright (c) 2022 amin2312
- * 2. Version 1.0.0
- * 3. MIT License
- *
- * Tween Easing.
- *
- * IF you don't need custom easing feature,
- * you can compile the project without this file.
- */
-var ATweenEasing = /** @class */ (function () {
-    function ATweenEasing() {
-    }
-    ATweenEasing.Linear = function (k) {
-        return k;
-    };
-    ATweenEasing.QuadraticIn = function (k) {
-        return k * k;
-    };
-    ATweenEasing.QuadraticOut = function (k) {
-        return k * (2 - k);
-    };
-    ATweenEasing.QuadraticInOut = function (k) {
-        if ((k *= 2) < 1) {
-            return 0.5 * k * k;
-        }
-        return -0.5 * (--k * (k - 2) - 1);
-    };
-    ATweenEasing.CubicIn = function (k) {
-        return k * k * k;
-    };
-    ATweenEasing.CubicOut = function (k) {
-        return --k * k * k + 1;
-    };
-    ATweenEasing.CubicInOut = function (k) {
-        if ((k *= 2) < 1) {
-            return 0.5 * k * k * k;
-        }
-        return 0.5 * ((k -= 2) * k * k + 2);
-    };
-    ATweenEasing.QuarticIn = function (k) {
-        return k * k * k * k;
-    };
-    ATweenEasing.QuarticOut = function (k) {
-        return 1 - (--k * k * k * k);
-    };
-    ATweenEasing.QuarticInOut = function (k) {
-        if ((k *= 2) < 1) {
-            return 0.5 * k * k * k * k;
-        }
-        return -0.5 * ((k -= 2) * k * k * k - 2);
-    };
-    ATweenEasing.QuinticIn = function (k) {
-        return k * k * k * k * k;
-    };
-    ATweenEasing.QuinticOut = function (k) {
-        return --k * k * k * k * k + 1;
-    };
-    ATweenEasing.QuinticInOut = function (k) {
-        if ((k *= 2) < 1) {
-            return 0.5 * k * k * k * k * k;
-        }
-        return 0.5 * ((k -= 2) * k * k * k * k + 2);
-    };
-    ATweenEasing.SinusoidalIn = function (k) {
-        return 1 - Math.cos(k * Math.PI / 2);
-    };
-    ATweenEasing.SinusoidalOut = function (k) {
-        return Math.sin(k * Math.PI / 2);
-    };
-    ATweenEasing.SinusoidalInOut = function (k) {
-        return 0.5 * (1 - Math.cos(Math.PI * k));
-    };
-    ATweenEasing.ExponentialIn = function (k) {
-        return k == 0 ? 0 : Math.pow(1024, k - 1);
-    };
-    ATweenEasing.ExponentialOut = function (k) {
-        return k == 1 ? 1 : 1 - Math.pow(2, -10 * k);
-    };
-    ATweenEasing.ExponentialInOut = function (k) {
-        if (k == 0) {
-            return 0;
-        }
-        if (k == 1) {
-            return 1;
-        }
-        if ((k *= 2) < 1) {
-            return 0.5 * Math.pow(1024, k - 1);
-        }
-        return 0.5 * (-Math.pow(2, -10 * (k - 1)) + 2);
-    };
-    ATweenEasing.CircularIn = function (k) {
-        return 1 - Math.sqrt(1 - k * k);
-    };
-    ATweenEasing.CircularOut = function (k) {
-        return Math.sqrt(1 - (--k * k));
-    };
-    ATweenEasing.CircularInOut = function (k) {
-        if ((k *= 2) < 1) {
-            return -0.5 * (Math.sqrt(1 - k * k) - 1);
-        }
-        return 0.5 * (Math.sqrt(1 - (k -= 2) * k) + 1);
-    };
-    ATweenEasing.ElasticIn = function (k) {
-        if (k == 0) {
-            return 0;
-        }
-        if (k == 1) {
-            return 1;
-        }
-        return -Math.pow(2, 10 * (k - 1)) * Math.sin((k - 1.1) * 5 * Math.PI);
-    };
-    ATweenEasing.ElasticOut = function (k) {
-        if (k == 0) {
-            return 0;
-        }
-        if (k == 1) {
-            return 1;
-        }
-        return Math.pow(2, -10 * k) * Math.sin((k - 0.1) * 5 * Math.PI) + 1;
-    };
-    ATweenEasing.ElasticInOut = function (k) {
-        if (k == 0) {
-            return 0;
-        }
-        if (k == 1) {
-            return 1;
-        }
-        k *= 2;
-        if (k < 1) {
-            return -0.5 * Math.pow(2, 10 * (k - 1)) * Math.sin((k - 1.1) * 5 * Math.PI);
-        }
-        return 0.5 * Math.pow(2, -10 * (k - 1)) * Math.sin((k - 1.1) * 5 * Math.PI) + 1;
-    };
-    ATweenEasing.BackIn = function (k) {
-        var s = 1.70158;
-        return k * k * ((s + 1) * k - s);
-    };
-    ATweenEasing.BackOut = function (k) {
-        var s = 1.70158;
-        return --k * k * ((s + 1) * k + s) + 1;
-    };
-    ATweenEasing.BackInOut = function (k) {
-        var s = 1.70158 * 1.525;
-        if ((k *= 2) < 1) {
-            return 0.5 * (k * k * ((s + 1) * k - s));
-        }
-        return 0.5 * ((k -= 2) * k * ((s + 1) * k + s) + 2);
-    };
-    ATweenEasing.BounceIn = function (k) {
-        return 1 - ATweenEasing.BounceOut(1 - k);
-    };
-    ATweenEasing.BounceOut = function (k) {
-        if (k < (1 / 2.75)) {
-            return 7.5625 * k * k;
-        }
-        else if (k < (2 / 2.75)) {
-            return 7.5625 * (k -= (1.5 / 2.75)) * k + 0.75;
-        }
-        else if (k < (2.5 / 2.75)) {
-            return 7.5625 * (k -= (2.25 / 2.75)) * k + 0.9375;
-        }
-        else {
-            return 7.5625 * (k -= (2.625 / 2.75)) * k + 0.984375;
-        }
-    };
-    ATweenEasing.BounceInOut = function (k) {
-        if (k < 0.5) {
-            return ATweenEasing.BounceIn(k * 2) * 0.5;
-        }
-        return ATweenEasing.BounceOut(k * 2 - 1) * 0.5 + 0.5;
-    };
-    return ATweenEasing;
-}());

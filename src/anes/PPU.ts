@@ -8,115 +8,115 @@ namespace anes
 		 */
 		// ------------ 2000
 		/* bit2 */
-		private offset32: number;		// nt_addr offset value
+		private offset32: number = 0;			// nt_addr offset value
 		/* bit3 */
-		private SPHeadAddr: number;		// sprite start adderess - 0: 0x0000, 1: 0x1000
+		private SPHeadAddr: number = 0;			// sprite start adderess - 0: 0x0000, 1: 0x1000
 		/* bit4 */
-		private BGHeadAddr: number;		// background start address - 0: 0x0000, 1: 0x1000
+		private BGHeadAddr: number = 0;			// background start address - 0: 0x0000, 1: 0x1000
 		/* bit5 */
-		private _8x16: Boolean;			// big sprite flag - 0: 8x8 sprite, 1: 8x16 sprite
+		private _8x16: Boolean = false;			// big sprite flag - 0: 8x8 sprite, 1: 8x16 sprite
 		/* bit7 */
-		private NMI: Boolean;			// NMI flag - 0: on, 1: off
+		private NMI: Boolean = false;			// NMI flag - 0: on, 1: off
 		// ------------ 2001
 		/* bit0 */
-		private BWColor: Boolean;		// [no uesd] - color flag - 0: color, 1:b&w 0
+		private BWColor: Boolean = false;		// [no uesd] - color flag - 0: color, 1:b&w 0
 		/* bit1 */
-		private BGL1Col: Boolean;		// [no uesd] - left 1 of background flag - 0: hidden, 1: show
+		private BGL1Col: Boolean = false;		// [no uesd] - left 1 of background flag - 0: hidden, 1: show
 		/* bit2 */
-		private SPL1Col: Boolean;		// [no uesd] - left 1 of sprite flag - 0: hidden, 1: show
+		private SPL1Col: Boolean = false;		// [no uesd] - left 1 of sprite flag - 0: hidden, 1: show
 		/* bit3 */
-		private hideBG: Boolean;		// background flag - 0: hidden, 1: show
+		private hideBG: Boolean = false;		// background flag - 0: hidden, 1: show
 		/* bit4 */
-		private hideSP: Boolean;		// sprite flag - 0: hidden, 1: show
+		private hideSP: Boolean = false;		// sprite flag - 0: hidden, 1: show
 		/* point[5-7] */
-		private lightness: number;		// [no uesd]
+		private lightness: number = 0;			// [no uesd]
 		// ------------ 2002
 		/* bit4 */
-		private ignoreWrite: Boolean;	// [no uesd] - ignore writ to VRAM flag
+		private ignoreWrite: Boolean = false;	// [no uesd] - ignore writ to VRAM flag
 		/* bit5 */
-		private more8Sprite: Boolean;	// [no uesd] - scan over 8 sprites flag
+		private more8Sprite: Boolean = false;	// [no uesd] - scan over 8 sprites flag
 		/* bit6 */
-		private hit: Boolean;			// collision detection flag
+		private hit: Boolean = false;			// collision detection flag
 		/* bit7 */
-		private VBlank: Boolean;		// VBlank flag
+		private VBlank: Boolean = false;		// VBlank flag
 		// ------------ 2003
-		private reg2003: number;
+		private reg2003: number = 0;
 		// ------------ 2005 & 2006 shared flag
-		private toggle: Boolean;
+		private toggle: Boolean = false;
 		// ------------ 2006
-		private reg2006: number;		// Counter
+		private reg2006: number = 0;		// Counter
 		// ------------ 2007
-		private readBuffer: number;		// VRAM read buffer, read address #2007 is invalid in first
+		private readBuffer: number = 0;		// VRAM read buffer, read address #2007 is invalid in first
 		/**
 		 * Parameters for render
 		 */
-		private background: Uint8Array;	// bitmap of background
-		private sprite0: Uint8Array;	// Sprite 0 graphics,used in collision detection
-		private SM0: Uint8Array;		// Matrix Mapping 0
-		private SM1: Uint8Array;		// Matrix Mapping 1
-		private scanline: number;		// Current Scan Line
-		private forcedVBlank: Boolean;	// Forced VBlank	
-		private regTemp: number;		// temporary register
-		private pt0_vt: Uint8Array;
-		private pt1_vt: Uint8Array;
+		private background: Int32Array;			// bitmap of background
+		private sprite0: Int32Array;			// Sprite 0 graphics,used in collision detection
+		private SM0: Int32Array;				// Matrix Mapping 0
+		private SM1: Int32Array;				// Matrix Mapping 1
+		private scanline: number = 0;			// Current Scan Line
+		private forcedVBlank: Boolean = false;	// Forced VBlank	
+		private regTemp: number = 0;			// temporary register
+		private pt0_vt: Int32Array;
+		private pt1_vt: Int32Array;
 
-		private FV: number;		// fine vertical
-		private VT: number;		// vertical tile index
-		private HT: number;		// horizontal tile index
-		private V: number;		// vertical table index
-		private H: number;		// horizontal table index
-		private VH: number;
-		private FH: number;		// fine horizontal
+		private FV: number = 0;		// fine vertical
+		private VT: number = 0;		// vertical tile index
+		private HT: number = 0;		// horizontal tile index
+		private V: number = 0;		// vertical table index
+		private H: number = 0;		// horizontal table index
+		private VH: number = 0;
+		private FH: number = 0;		// fine horizontal
 		/**
 		 * Temporary variables
 		 */
-		private topX: number;
-		private topY: number;
-		private sp_H: number;
-		private sp0_Y: number;
-		private sp0_X: number;
+		private topX: number = 0;
+		private topY: number = 0;
+		private sp_H: number = 0;
+		private sp0_Y: number = 0;
+		private sp0_X: number = 0;
 		// name table
-		private nt_addr: number;
+		private nt_addr: number = 0;
 		// attribute table
-		private groupRow: number;
-		private squareRow: number;
-		private sq_index: number;
-		private at_addr: number;
+		private groupRow: number = 0;
+		private squareRow: number = 0;
+		private sq_index: number = 0;
+		private at_addr: number = 0;
 		// pattern table
-		private pt_addr: number;
-		private pt0_data: number;
-		private pt1_data: number;
+		private pt_addr: number = 0;
+		private pt0_data: number = 0;
+		private pt1_data: number = 0;
 		// point attributes
-		private point: number;
-		private point_row: number;
-		private l_bit_pal: number;		// lower image palette address
-		private u_bit_pal: number;		// upper image palette address
-		private pal_index: number;		// image palette address
-		private pal_data: number;		// image palette value
+		private point: number = 0;
+		private point_row: number = 0;
+		private l_bit_pal: number = 0;		// lower image palette address
+		private u_bit_pal: number = 0;		// upper image palette address
+		private pal_index: number = 0;		// image palette address
+		private pal_data: number = 0;		// image palette value
 		// sprite attributes
-		private pt0_row: number;
-		private pt1_row: number;
-		private pt_index: number;
-		private sp_at: number;
-		private foreground: Boolean;
-		private flipH: Boolean;
-		private flipV: Boolean;
-		private fitX: number;
-		private fitY: number;
-		private bitX: number;
-		private bitY: number;
-		private bgPoint: number;
+		private pt0_row: number = 0;
+		private pt1_row: number = 0;
+		private pt_index: number = 0;
+		private sp_at: number = 0;
+		private foreground: Boolean = false;
+		private flipH: Boolean = false;
+		private flipV: Boolean = false;
+		private fitX: number = 0;
+		private fitY: number = 0;
+		private bitX: number = 0;
+		private bitY: number = 0;
+		private bgPoint: number = 0;
 		/**
-		 * Outputs
+		 * Outers
 		 */
-		public output: Uint8Array;		// bitmap of output image
-		public renderedFrames: number;	// rendered frames
+		public output: Int8Array;			// bitmap of output image
+		public renderedFrames: number = 0;	// rendered frames
 
-		public VRAM: Uint8Array;		// video RAM:PPU's memory, somrwhere are mapping
-		public SRAM: Uint8Array;		// sprite RAM:256 bytes,64 sprites
-		public ENC: number;				// used time that enter NMI interrupt - 7 CC
+		public VRAM: Int32Array;			// video RAM:PPU's memory, somrwhere are mapping
+		public SRAM: Int32Array;			// sprite RAM:256 bytes,64 sprites
+		public ENC: number = 0;				// used time that enter NMI interrupt - 7 CC
 
-		public m_REG: Uint8Array = new Uint8Array(4);
+		public m_REG: Int32Array = new Int32Array(4);
 		/**
 		 * Constructor.
 		 */
@@ -127,17 +127,17 @@ namespace anes
 			this.hideBG = true;
 			this.hideSP = true;
 			//----------------------------------------------------
-			this.VRAM = new Uint8Array(0x10000);
-			this.SRAM = new Uint8Array(0x100);
-			this.output = new Uint8Array(256 * 240);
+			this.VRAM = new Int32Array(0x10000);
+			this.SRAM = new Int32Array(0x100);
+			//this.output = new Int32Array(256 * 240);
 			//----------------------------------------------------
-			this.background = new Uint8Array(256 * 240);
-			this.sprite0 = new Uint8Array(0x80);
-			this.SM0 = new Uint8Array([0x03, 0x03, 0x0C, 0x0C, 0x03, 0x03, 0x0C, 0x0C, 0x30, 0x30, 0xC0, 0xC0, 0x30, 0x30, 0xC0, 0xC0]);
-			this.SM1 = new Uint8Array([0, 0, 2, 2, 0, 0, 2, 2, 4, 4, 6, 6, 4, 4, 6, 6]);
+			this.background = new Int32Array(256 * 240);
+			this.sprite0 = new Int32Array(0x80);
+			this.SM0 = new Int32Array([0x03, 0x03, 0x0C, 0x0C, 0x03, 0x03, 0x0C, 0x0C, 0x30, 0x30, 0xC0, 0xC0, 0x30, 0x30, 0xC0, 0xC0]);
+			this.SM1 = new Int32Array([0, 0, 2, 2, 0, 0, 2, 2, 4, 4, 6, 6, 4, 4, 6, 6]);
 			//----------------------------------------------------
-			this.pt0_vt = new Uint8Array(16);
-			this.pt1_vt = new Uint8Array(16);
+			this.pt0_vt = new Int32Array(16);
+			this.pt1_vt = new Int32Array(16);
 		}
 		/**
 		 * Render line
@@ -341,8 +341,8 @@ namespace anes
 			// 2.parse attributes
 			this.u_bit_pal = this.sp_at & 0x03;
 			this.foreground = !(this.sp_at & 0x20);
-			this.flipH = Boolean(this.sp_at & 0x40);
-			this.flipV = Boolean(this.sp_at & 0x80);
+			this.flipH = (this.sp_at & 0x40) > 0;
+			this.flipV = (this.sp_at & 0x80) > 0;
 			if (this._8x16)
 			{
 				if ((this.pt_index & 1) == 0) // even number
@@ -478,8 +478,8 @@ namespace anes
 				// 2.parse attributes
 				this.u_bit_pal = this.sp_at & 0x03;
 				this.foreground = !(this.sp_at & 0x20);		// foreground
-				this.flipH = Boolean(this.sp_at & 0x40);
-				this.flipV = Boolean(this.sp_at & 0x80);
+				this.flipH = (this.sp_at & 0x40) > 0;
+				this.flipV = (this.sp_at & 0x80) > 0;
 				if (this._8x16)
 				{
 					if ((this.pt_index & 1) == 0) //even number
@@ -667,13 +667,13 @@ namespace anes
 		/**
 		 * Write data.
 		 */
-		public w2(address: number, value: number): void
+		public w(address: number, value: number): void
 		{
 			if (address == 0x2007) // VRAM data
 			{
 				if (this.reg2006 >= 0x3F20)
 				{
-					console.log('PPU write 0x3F20');
+					//console.log('PPU write 0x3F20');
 				}
 				else if (this.reg2006 >= 0x3F00)
 				{
@@ -697,7 +697,7 @@ namespace anes
 				}
 				else if (this.reg2006 >= 0x3000)
 				{
-					console.log('PPU write 0x3000', this.scanline);
+					//console.log('PPU write 0x3000', this.scanline);
 				}
 				else if (this.reg2006 >= 0x2000)
 				{
@@ -812,13 +812,13 @@ namespace anes
 			}
 			else if (address == 0x2001) // control register 2		- 控制寄存器2
 			{
-				this.BWColor = Boolean(value & 0x01);
-				this.BGL1Col = Boolean(value & 0x02);
-				this.SPL1Col = Boolean(value & 0x04);
+				this.BWColor = (value & 0x01) > 0;
+				this.BGL1Col = (value & 0x02) > 0;
+				this.SPL1Col = (value & 0x04) > 0;
 				this.hideBG = !(value & 0x08);
 				this.hideSP = !(value & 0x10);
 				this.lightness = (value & 0xE0) >> 5;
-				//console.log(SPL1Col,BGL1Col);
+				//console.log(SPL1Col, BGL1Col);
 			}
 			else if (address == 0x2000)	// control register 1
 			{
@@ -827,8 +827,8 @@ namespace anes
 				this.offset32 = (value & 0x4) >> 2;
 				this.SPHeadAddr = (value & 0x08) && 0x1000;
 				this.BGHeadAddr = (value & 0x10) && 0x1000;
-				this._8x16 = Boolean(value & 0x20);
-				this.NMI = Boolean(value & 0x80);
+				this._8x16 = (value & 0x20) > 0;
+				this.NMI = (value & 0x80) > 0;
 			}
 			else
 			{

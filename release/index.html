@@ -1,0 +1,82 @@
+<html>
+
+<head>
+    <meta charSet="utf-8" />
+</head>
+<style>
+    html {
+        font-size: 12px;
+    }
+
+    html,
+    body {
+        margin: 0px;
+        padding: 0px;
+        color: #000;
+    }
+
+    button {
+        padding: 0px;
+        margin: 5px;
+    }
+
+    table {
+        border-spacing: 0px;
+        border-collapse: collapse;
+    }
+
+    td {
+        border: 1px #000 solid;
+        padding: 5px;
+    }
+
+    #nav {
+        height: 30px;
+        line-height: 30px;
+        font-size: 1.5rem;
+        background-color: #EEE;
+    }
+
+    #nav a {
+        color: blue;
+        margin-left: 10px;
+        text-decoration: none;
+    }
+
+    #nav a:hover {
+        color: blue;
+        text-decoration: underline;
+    }
+
+    #main {
+        width: 996px;
+        margin: 0px auto;
+    }
+
+    #output {
+        width: 512;
+        margin: 0 auto;
+    }
+
+    #myCanvas {
+        background-color: #000;
+        width: 512px;
+        height: 480px;
+    }
+</style>
+
+<body>
+    <div id="main">
+        <div id="nav"><a href="https://github.com/amin2312/ANes">[Home]</a><a href="demo.hx.html">[Demo]</a></div>
+        <div style="line-height: 60px; font-size:2rem; font-weight: bold; text-align: center;">ANes emulator</div>
+        <div id="output">
+            <canvas id="myCanvas" width="256" height="240"></canvas>
+        </div>
+    </div>
+    <br /><br /><br /><br /><br /><br />
+</body>
+
+</html>
+<script src="stats.min.js"></script>
+<script src="ATween.min.js"></script>
+<script src="index.js"></script>

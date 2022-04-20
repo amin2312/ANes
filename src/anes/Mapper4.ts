@@ -4,10 +4,10 @@ namespace anes
 {
 	export class Mapper4 extends Node implements Mapper
 	{
-		private reg: Uint8Array = new Uint8Array(8);
+		private reg: Int32Array = new Int32Array(8);
 
-		private nPRGIndex: Uint8Array = new Uint8Array(2);
-		private nCHRIndex: Uint8Array = new Uint8Array(8);
+		private nPRGIndex: Int32Array = new Int32Array(2);
+		private nCHRIndex: Int32Array = new Int32Array(8);
 
 		private nIRQLatch: number = 0xFF;
 		private nIRQCounter: number = 0;
@@ -15,13 +15,13 @@ namespace anes
 		private nIRQPreset: number = 0;
 		private nIRQPresetVbl: number = 0;
 
-		private Mapper4_CPU_Page: Uint8Array = new Uint8Array(4);
-		private Mapper4_PPU_Page: Uint8Array = new Uint8Array(12);
+		private Mapper4_CPU_Page: Int32Array = new Int32Array(4);
+		private Mapper4_PPU_Page: Int32Array = new Int32Array(12);
 
-		//public PPU_MEM_BANK: Uint8Array = new Uint8Array(12);
-		//public CPU_MEM_BANK: Uint8Array = new Uint8Array(8);
-		public CRAM: Uint8Array = new Uint8Array(32 * 1024);
-		public VRAM: Uint8Array = new Uint8Array(4 * 1024);
+		//public PPU_MEM_BANK: Int32Array = new Int32Array(12);
+		//public CPU_MEM_BANK: Int32Array = new Int32Array(8);
+		public CRAM: Int32Array = new Int32Array(32 * 1024);
+		public VRAM: Int32Array = new Int32Array(4 * 1024);
 		/**
 		 * Constructor.
 		 */

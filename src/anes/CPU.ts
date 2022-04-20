@@ -9,7 +9,7 @@ namespace anes
 		/**
 		 * Defines.
 		 */
-		readonly frequency: Number = 1789772.5;
+		static readonly frequency: number = 1789772.5;
 		/**
 		 * Registers
 		 */
@@ -41,14 +41,14 @@ namespace anes
 		private tmpN: number;			// temp number value
 		private tmpB: boolean;			// temp boolean value
 		private lastPC: number;			// last program counter
-		private cycleList: Uint8Array;	// opcode clock cycles lsit
+		private cycleList: Int32Array;	// opcode clock cycles lsit
 		private seg: number;
 		/**
 		 * Outers.
 		 */
-		public memory: Uint8Array;		// some addrs is mapping
-		public onceExecedCC: number;	// clock cycles of executed in once exec
-		public execedCC: number			// clock cycles of executed
+		public memory: Uint8Array;			// some addrs is mapping
+		public onceExecedCC: number = 0;	// clock cycles of executed in once exec
+		public execedCC: number = 0;		// clock cycles of executed
 		/**
 		 * Constructor.
 		 */
@@ -62,8 +62,8 @@ namespace anes
 			this.NF = this.VF = this.BF = this.DF = this.IF = this.ZF = this.CF = false;
 			this.RF = true;
 			// initalize variables
-			this.memory = new Uint8Array(0x10000);	// 64KB
-			this.cycleList = new Uint8Array([7, 6, 0, 0, 0, 3, 5, 0, 3, 2, 2, 0, 0, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 6, 2, 0, 0, 3, 3, 5, 0, 4, 2, 2, 0, 4, 4, 6, 0, 2, 2, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 6, 6, 0, 0, 0, 3, 5, 0, 3, 2, 2, 0, 3, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 6, 6, 0, 0, 0, 3, 5, 0, 4, 2, 2, 0, 5, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 0, 6, 0, 0, 3, 3, 3, 0, 2, 0, 2, 0, 4, 4, 4, 0, 2, 6, 0, 0, 4, 4, 4, 0, 2, 5, 2, 0, 0, 5, 0, 0, 2, 6, 2, 0, 3, 3, 3, 0, 2, 2, 2, 0, 4, 4, 4, 0, 2, 5, 0, 0, 4, 4, 4, 0, 2, 4, 2, 0, 4, 4, 4, 0, 2, 6, 0, 0, 3, 3, 5, 0, 2, 2, 2, 0, 4, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 2, 6, 0, 0, 3, 3, 5, 0, 2, 2, 2, 0, 4, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0]);
+			this.memory = new Int32Array(0x10000);	// 64KB
+			this.cycleList = new Int32Array([7, 6, 0, 0, 0, 3, 5, 0, 3, 2, 2, 0, 0, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 6, 2, 0, 0, 3, 3, 5, 0, 4, 2, 2, 0, 4, 4, 6, 0, 2, 2, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 6, 6, 0, 0, 0, 3, 5, 0, 3, 2, 2, 0, 3, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 6, 6, 0, 0, 0, 3, 5, 0, 4, 2, 2, 0, 5, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 0, 6, 0, 0, 3, 3, 3, 0, 2, 0, 2, 0, 4, 4, 4, 0, 2, 6, 0, 0, 4, 4, 4, 0, 2, 5, 2, 0, 0, 5, 0, 0, 2, 6, 2, 0, 3, 3, 3, 0, 2, 2, 2, 0, 4, 4, 4, 0, 2, 5, 0, 0, 4, 4, 4, 0, 2, 4, 2, 0, 4, 4, 4, 0, 2, 6, 0, 0, 3, 3, 5, 0, 2, 2, 2, 0, 4, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0, 2, 6, 0, 0, 3, 3, 5, 0, 2, 2, 2, 0, 4, 4, 6, 0, 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0]);
 		}
 		/**
 		 * Reset.
@@ -185,7 +185,7 @@ namespace anes
 			else if (this.seg == 0x01)
 			{
 				/* $2000-$3FFF(PPU) */
-				this.bus.ppu.w2(addr & 0xE007, value);
+				this.bus.ppu.w(addr & 0xE007, value);
 			}
 			else if (this.seg == 0x02)
 			{
@@ -233,6 +233,7 @@ namespace anes
 				this.bus.mapperW(addr, value);
 			}
 		}
+		private _ii = 0;
 		/**
 		 * execution instruction(execute instruction
 		 */
@@ -241,6 +242,16 @@ namespace anes
 			for (; ;)
 			{
 				this.oc = this.memory[this.PC];
+				if (this._ii >= 16000 && this._ii <= 17000)
+				{
+						console.log(this._ii, this.oc, this.Y);
+				}
+				if (this._ii == 16273)
+				{
+					debugger;
+				}
+				this._ii++;
+				
 				this.lastPC = this.PC;
 				this.PC += 1;
 				if (this.oc >= 0xC0)
@@ -266,7 +277,7 @@ namespace anes
 								// 2.execute instruction
 								this.src = this.r(this.addr) + 1 & 0xFF;
 								// 3.update flags
-								this.NF = Boolean(this.src & 0x80);
+								this.NF = (this.src & 0x80) > 0;
 								this.ZF = !this.src;
 								// 4.save data
 								this.w(this.addr, this.src);
@@ -283,13 +294,12 @@ namespace anes
 								this.addr = this.tmpN + this.X & 0xFFFF;
 								// 2.execute instruction
 								this.src = this.r(this.addr);
-								this.dst = (this.A - this.src) - (+!this.CF);
+								this.dst = (this.A - this.src & 0xFF) - (+!this.CF) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
-								this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
+								this.VF = (0x80 & (this.A ^ this.src) & (this.A ^ this.dst)) > 0;
 								this.A = this.dst;
-								this.NF = Boolean(this.A & 0x80);
+								this.NF = (this.A & 0x80) > 0;
 								this.ZF = !this.A;
 								// 9.sum clock cycles
 								this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
@@ -316,16 +326,16 @@ namespace anes
 								this.u_or = this.memory[this.PC];
 								this.PC += 1;
 								this.tmpN = this.u_or << 8 | this.l_or;
-								this.addr = this.tmpN + this.Y;
+								this.addr = this.tmpN + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.src = this.r(this.addr);
-								this.dst = (this.A - this.src) - (+!this.CF);
+								this.dst = (this.A - this.src & 0xFF) - (+!this.CF) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
 								this.dst &= 0xFF; // [fixed]
-								this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
+								this.VF = (0x80 & (this.A ^ this.src) & (this.A ^ this.dst)) > 0;
 								this.A = this.dst;
-								this.NF = Boolean(this.A & 0x80);
+								this.NF = (this.A & 0x80) > 0;
 								this.ZF = !this.A;
 								// 9.sum clock cycles
 								this.onceExecedCC += +((this.tmpN & 0xFF00) != (this.addr & 0xFF00));
@@ -364,10 +374,9 @@ namespace anes
 								this.PC += 1;
 								// 2.execute instruction
 								this.src = this.memory[this.addr];
-								this.dst = (this.A - this.src) - (+!this.CF);
+								this.dst = (this.A - this.src & 0xFF) - (+!this.CF) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
 								this.A = this.dst;
 								this.NF = Boolean(this.A & 0x80);
@@ -393,13 +402,12 @@ namespace anes
 								this.l_or = this.memory[this.PC];
 								this.PC += 1;
 								this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
-								this.addr = this.tmpN + this.Y;
+								this.addr = this.tmpN + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.src = this.r(this.addr);
-								this.dst = (this.A - this.src) - (+!this.CF);
+								this.dst = (this.A - this.src & 0xFF) - (+!this.CF) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
 								this.A = this.dst;
 								this.NF = Boolean(this.A & 0x80);
@@ -462,10 +470,9 @@ namespace anes
 								this.addr = this.u_or << 8 | this.l_or;
 								// 2.execute instruction
 								this.src = this.r(this.addr);
-								this.dst = (this.A - this.src) - (+!this.CF);
+								this.dst = (this.A - this.src & 0xFF) - (+!this.CF) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
 								this.A = this.dst;
 								this.NF = Boolean(this.A & 0x80);
@@ -481,10 +488,9 @@ namespace anes
 								this.PC += 1;
 								this.addr = this.u_or << 8 | this.l_or;
 								// 2.execute instruction
-								this.dst = this.X - this.r(this.addr);
+								this.dst = this.X - this.r(this.addr) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.NF = Boolean(this.dst & 0x80);
 								this.ZF = !this.dst;
 							}
@@ -506,10 +512,9 @@ namespace anes
 								this.PC += 1;
 								// 2.execute instruction
 								this.src = this.l_or;
-								this.dst = (this.A - this.src) - (+!this.CF);
+								this.dst = (this.A - this.src & 0xFF) - (+!this.CF) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
 								this.A = this.dst;
 								this.NF = Boolean(this.A & 0x80);
@@ -553,10 +558,9 @@ namespace anes
 								this.PC += 1;
 								// 2.execute instruction
 								this.src = this.memory[this.addr];
-								this.dst = (this.A - this.src) - (+!this.CF);
+								this.dst = (this.A - this.src & 0xFF) - (+!this.CF) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
 								this.A = this.dst;
 								this.NF = Boolean(this.A & 0x80);
@@ -572,7 +576,6 @@ namespace anes
 								this.dst = this.X - this.memory[this.addr];
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.NF = Boolean(this.dst & 0x80);
 								this.ZF = !this.dst;
 							}
@@ -594,10 +597,9 @@ namespace anes
 								this.addr = this.memory[(this.l_or + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_or + this.X & 0xFF];
 								// 2.execute instruction
 								this.src = this.r(this.addr);
-								this.dst = (this.A - this.src) - (+!this.CF);
+								this.dst = (this.A - this.src & 0xFF) - (+!this.CF) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.VF = Boolean(0x80 & (this.A ^ this.src) & (this.A ^ this.dst));
 								this.A = this.dst;
 								this.NF = Boolean(this.A & 0x80);
@@ -610,10 +612,9 @@ namespace anes
 								this.l_or = this.memory[this.PC];
 								this.PC += 1;
 								// 2.execute instruction
-								this.dst = this.X - this.l_or;
+								this.dst = this.X - this.l_or & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.NF = Boolean(this.dst & 0x80);
 								this.ZF = !this.dst;
 							}
@@ -656,10 +657,9 @@ namespace anes
 								this.tmpN = this.u_or << 8 | this.l_or;
 								this.addr = this.tmpN + this.X & 0xFFFF;
 								// 2.execute instruction
-								this.dst = this.A - this.r(this.addr);
+								this.dst = this.A - this.r(this.addr) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.NF = Boolean(this.dst & 0x80);
 								this.ZF = !this.dst;
 								// 9.sum clock cycles
@@ -687,12 +687,11 @@ namespace anes
 								this.u_or = this.memory[this.PC];
 								this.PC += 1;
 								this.tmpN = this.u_or << 8 | this.l_or;
-								this.addr = this.tmpN + this.Y;
+								this.addr = this.tmpN + this.Y & 0xFFFF;
 								// 2.execute instruction
-								this.dst = this.A - this.r(this.addr);
+								this.dst = this.A - this.r(this.addr) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.NF = Boolean(this.dst & 0x80);
 								this.ZF = !this.dst;
 								// 9.sum clock cycles
@@ -731,10 +730,9 @@ namespace anes
 								this.addr = this.memory[this.PC] + this.X & 0xFF;
 								this.PC += 1;
 								// 2.execute instruction
-								this.dst = this.A - this.memory[this.addr];
+								this.dst = this.A - this.memory[this.addr] & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.NF = Boolean(this.dst & 0x80);
 								this.ZF = !this.dst;
 							}
@@ -758,12 +756,11 @@ namespace anes
 								this.l_or = this.memory[this.PC];
 								this.PC += 1;
 								this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
-								this.addr = this.tmpN + this.Y;
+								this.addr = this.tmpN + this.Y & 0xFFFF;
 								// 2.execute instruction
-								this.dst = this.A - this.r(this.addr);
+								this.dst = this.A - this.r(this.addr) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.NF = Boolean(this.dst & 0x80);
 								this.ZF = !this.dst;
 								// 9.sum clock cycles
@@ -823,10 +820,9 @@ namespace anes
 								this.PC += 1;
 								this.addr = this.u_or << 8 | this.l_or;
 								// 2.execute instruction
-								this.dst = this.A - this.r(this.addr);
+								this.dst = this.A - this.r(this.addr) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.NF = Boolean(this.dst & 0x80);
 								this.ZF = !this.dst;
 							}
@@ -840,10 +836,9 @@ namespace anes
 								this.PC += 1;
 								this.addr = this.u_or << 8 | this.l_or;
 								// 2.execute instruction
-								this.dst = this.Y - this.r(this.addr);
+								this.dst = (this.Y - this.r(this.addr)) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.NF = Boolean(this.dst & 0x80);
 								this.ZF = !this.dst;
 							}
@@ -870,7 +865,7 @@ namespace anes
 								this.l_or = this.memory[this.PC];
 								this.PC += 1;
 								// 2.execute instruction
-								this.dst = this.A - this.l_or;
+								this.dst = this.A - this.l_or & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
 								this.dst &= 0xFF; // [fixed]
@@ -914,10 +909,9 @@ namespace anes
 								this.addr = this.memory[this.PC];
 								this.PC += 1;
 								// 2.execute instruction
-								this.dst = this.A - this.memory[this.addr];
+								this.dst = (this.A - this.memory[this.addr]) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.NF = Boolean(this.dst & 0x80);
 								this.ZF = !this.dst;
 							}
@@ -928,10 +922,9 @@ namespace anes
 								this.addr = this.memory[this.PC];
 								this.PC += 1;
 								// 2.execute instruction
-								this.dst = this.Y - this.memory[this.addr];
+								this.dst = (this.Y - this.memory[this.addr]) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.NF = Boolean(this.dst & 0x80);
 								this.ZF = !this.dst;
 							}
@@ -952,10 +945,9 @@ namespace anes
 								this.PC += 1;
 								this.addr = this.memory[(this.l_or + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_or + this.X & 0xFF];
 								// 2.execute instruction
-								this.dst = this.A - this.r(this.addr);
+								this.dst = this.A - this.r(this.addr) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.NF = Boolean(this.dst & 0x80);
 								this.ZF = !this.dst;
 							}
@@ -966,10 +958,9 @@ namespace anes
 								this.l_or = this.memory[this.PC];
 								this.PC += 1;
 								// 2.execute instruction
-								this.dst = this.Y - this.l_or;
+								this.dst = (this.Y - this.l_or) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst < 0x100;
-								this.dst &= 0xFF; // [fixed]
 								this.NF = Boolean(this.dst & 0x80);
 								this.ZF = !this.dst;
 							}
@@ -995,7 +986,7 @@ namespace anes
 								this.u_or = this.memory[this.PC];
 								this.PC += 1;
 								this.tmpN = this.u_or << 8 | this.l_or;
-								this.addr = this.tmpN + this.Y;
+								this.addr = this.tmpN + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.X = this.r(this.addr);
 								// 3.update flags
@@ -1064,7 +1055,7 @@ namespace anes
 								this.u_or = this.memory[this.PC];
 								this.PC += 1;
 								this.tmpN = this.u_or << 8 | this.l_or;
-								this.addr = this.tmpN + this.Y;
+								this.addr = this.tmpN + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.A = this.r(this.addr);
 								// 3.update flags
@@ -1137,7 +1128,7 @@ namespace anes
 								this.l_or = this.memory[this.PC];
 								this.PC += 1;
 								this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
-								this.addr = this.tmpN + this.Y;
+								this.addr = this.tmpN + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.A = this.r(this.addr);
 								// 3.update flags
@@ -1153,7 +1144,7 @@ namespace anes
 								this.l_or = this.memory[this.PC];
 								this.PC += 1;
 								// 2.execute instruction
-								if (+this.CF)
+								if (this.CF)
 								{
 									this.tmpN = this.PC;
 									this.addr = this.PC + ((this.l_or << 24) >> 24) & 0xFFFF;
@@ -1390,7 +1381,7 @@ namespace anes
 								this.u_or = this.memory[this.PC];
 								this.PC += 1;
 								this.tmpN = this.u_or << 8 | this.l_or;
-								this.addr = this.tmpN + this.Y;
+								this.addr = this.tmpN + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.src = this.A;
 								this.w(this.addr, this.src);
@@ -1453,7 +1444,7 @@ namespace anes
 								this.l_or = this.memory[this.PC];
 								this.PC += 1;
 								this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
-								this.addr = this.tmpN + this.Y;
+								this.addr = this.tmpN + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.src = this.A;
 								this.w(this.addr, this.src);
@@ -1657,10 +1648,9 @@ namespace anes
 								this.addr = this.tmpN + this.X & 0xFFFF;
 								// 2.execute instruction
 								this.src = this.r(this.addr);
-								this.dst = (this.A + this.src) + (+this.CF);
+								this.dst = (this.A + this.src & 0xFF) + (+this.CF) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst > 0xFF;
-								this.dst &= 0xFF; // [fixed]
 								this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
 								this.A = this.dst;
 								this.NF = Boolean(this.A & 0x80);
@@ -1689,13 +1679,12 @@ namespace anes
 								this.u_or = this.memory[this.PC];
 								this.PC += 1;
 								this.tmpN = this.u_or << 8 | this.l_or;
-								this.addr = this.tmpN + this.Y;
+								this.addr = this.tmpN + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.src = this.r(this.addr);
-								this.dst = (this.A + this.src) + (+this.CF);
+								this.dst = (this.A + this.src & 0xFF) + (+this.CF) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst > 0xFF;
-								this.dst &= 0xFF; // [fixed]
 								this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
 								this.A = this.dst;
 								this.NF = Boolean(this.A & 0x80);
@@ -1740,10 +1729,9 @@ namespace anes
 								this.PC += 1;
 								// 2.execute instruction
 								this.src = this.memory[this.addr];
-								this.dst = (this.A + this.src) + (+this.CF);
+								this.dst = (this.A + this.src & 0xFF) + (+this.CF) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst > 0xFF;
-								this.dst &= 0xFF; // [fixed]
 								this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
 								this.A = this.dst;
 								this.NF = Boolean(this.A & 0x80);
@@ -1768,13 +1756,12 @@ namespace anes
 								this.l_or = this.memory[this.PC];
 								this.PC += 1;
 								this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
-								this.addr = this.tmpN + this.Y;
+								this.addr = this.tmpN + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.src = this.r(this.addr);
-								this.dst = (this.A + this.src) + (+this.CF);
+								this.dst = (this.A + this.src & 0xFF) + (+this.CF) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst > 0xFF;
-								this.dst &= 0xFF; // [fixed]
 								this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
 								this.A = this.dst;
 								this.NF = Boolean(this.A & 0x80);
@@ -1840,10 +1827,9 @@ namespace anes
 								this.addr = this.u_or << 8 | this.l_or;
 								// 2.execute instruction
 								this.src = this.r(this.addr);
-								this.dst = (this.A + this.src) + (+this.CF);
+								this.dst = (this.A + this.src & 0xFF) + (+this.CF) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst > 0xFF;
-								this.dst &= 0xFF; // [fixed]
 								this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
 								this.A = this.dst;
 								this.NF = Boolean(this.A & 0x80);
@@ -1890,10 +1876,9 @@ namespace anes
 								this.PC += 1;
 								// 2.execute instruction
 								this.src = this.l_or;
-								this.dst = (this.A + this.src) + (+this.CF);
+								this.dst = (this.A + this.src & 0xFF) + (+this.CF) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst > 0xFF;
-								this.dst &= 0xFF; // [fixed]
 								this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
 								this.A = this.dst;
 								this.NF = Boolean(this.A & 0x80);
@@ -1941,10 +1926,9 @@ namespace anes
 								this.PC += 1;
 								// 2.execute instruction
 								this.src = this.memory[this.addr];
-								this.dst = (this.A + this.src) + (+this.CF);
+								this.dst = (this.A + this.src & 0xFF) + (+this.CF) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst > 0xFF;
-								this.dst &= 0xFF; // [fixed]
 								this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
 								this.A = this.dst;
 								this.NF = Boolean(this.A & 0x80);
@@ -1971,10 +1955,9 @@ namespace anes
 								this.addr = this.memory[(this.l_or + this.X) + 1 & 0xFF] << 8 | this.memory[this.l_or + this.X & 0xFF];
 								// 2.execute instruction
 								this.src = this.r(this.addr);
-								this.dst = (this.A + this.src) + (+this.CF);
+								this.dst = (this.A + this.src & 0xFF) + (+this.CF) & 0xFF;
 								// 3.update flags
 								this.CF = this.dst > 0xFF;
-								this.dst &= 0xFF; // [fixed]
 								this.VF = Boolean(0x80 & ~(this.A ^ this.src) & (this.A ^ this.dst));
 								this.A = this.dst;
 								this.NF = Boolean(this.A & 0x80);
@@ -2063,7 +2046,7 @@ namespace anes
 								this.u_or = this.memory[this.PC];
 								this.PC += 1;
 								this.tmpN = this.u_or << 8 | this.l_or;
-								this.addr = this.tmpN + this.Y;
+								this.addr = this.tmpN + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.A ^= this.r(this.addr);
 								// 3.update flags
@@ -2131,7 +2114,7 @@ namespace anes
 								this.l_or = this.memory[this.PC];
 								this.PC += 1;
 								this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
-								this.addr = this.tmpN + this.Y;
+								this.addr = this.tmpN + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.A ^= this.r(this.addr);
 								// 3.update flags
@@ -2410,7 +2393,7 @@ namespace anes
 								this.u_or = this.memory[this.PC];
 								this.PC += 1;
 								this.tmpN = this.u_or << 8 | this.l_or;
-								this.addr = this.tmpN + this.Y;
+								this.addr = this.tmpN + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.A &= this.r(this.addr);
 								// 3.update flags
@@ -2480,7 +2463,7 @@ namespace anes
 								this.l_or = this.memory[this.PC];
 								this.PC += 1;
 								this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
-								this.addr = this.tmpN + this.Y;
+								this.addr = this.tmpN + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.A &= this.r(this.addr);
 								// 3.update flags
@@ -2772,7 +2755,7 @@ namespace anes
 								this.u_or = this.memory[this.PC];
 								this.PC += 1;
 								this.tmpN = this.u_or << 8 | this.l_or;
-								this.addr = this.tmpN + this.Y;
+								this.addr = this.tmpN + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.A |= this.r(this.addr);
 								// 3.update flags
@@ -2841,7 +2824,7 @@ namespace anes
 								this.l_or = this.memory[this.PC];
 								this.PC += 1;
 								this.tmpN = this.memory[this.l_or + 1 & 0xFF] << 8 | this.memory[this.l_or];
-								this.addr = this.tmpN + this.Y;
+								this.addr = this.tmpN + this.Y & 0xFFFF;
 								// 2.execute instruction
 								this.A |= this.r(this.addr);
 								// 3.update flags

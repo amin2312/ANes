@@ -11,13 +11,13 @@
 		public joypad: Joypad;
 
 		public rom: Uint8Array;					// ROM
-		public pal: Uint8Array;					// Current Palette
+		public pal: Uint32Array;				// Current Palette
 
 		public mapper0: Mapper0;
 		public mapper1: Mapper1;
 		public mapper2: Mapper2;
 		public mapper3: Mapper3;
-		public mapper4: Mapper4;
+		//public mapper4: Mapper4;
 
 		public mapperW: Function;
 		public mappersW: Array<Function>;		// Mapper write function set
@@ -36,8 +36,8 @@
 		public mirrorS: Boolean = false;		// Single Screen Mirror Flag
 		public battery: Boolean = false;		// Battery Flag [not uesd]
 		public trainer: Boolean = false;		// Trainer Flag
-		public PRGBlock: Uint8Array;
-		public PatternTable: Uint8Array;
+		public PRGBlock: Int32Array;
+		public PatternTable: Int32Array;
 		/**
 		 * Constructor.
 		 */
@@ -52,20 +52,19 @@
 			this.mapper1 = new Mapper1(this);
 			this.mapper2 = new Mapper2(this);
 			this.mapper3 = new Mapper3(this);
-			this.mapper4 = new Mapper4(this);
+			//this.mapper4 = new Mapper4(this);
 
 			this.mappersW = new Array<Function>(0x100);
-			this.mappersW[0] = this.mapper0.write;
-			this.mappersW[1] = this.mapper1.write;
-			this.mappersW[2] = this.mapper2.write;
-			this.mappersW[3] = this.mapper3.write;
+			this.mappersW[0] = this.mapper0.write.bind(this.mapper0);
+			this.mappersW[1] = this.mapper1.write.bind(this.mapper1);
+			this.mappersW[2] = this.mapper2.write.bind(this.mapper2);
+			this.mappersW[3] = this.mapper3.write.bind(this.mapper3);
 
 			this.mappersR = new Array<Function>(0x100);
-			this.mappersR[0] = this.mapper0.reset;
-			this.mappersR[1] = this.mapper1.reset;
-			this.mappersR[2] = this.mapper2.reset;
-			this.mappersR[3] = this.mapper3.reset;
-			this.mappersR[4] = this.mapper4.reset;
+			this.mappersR[0] = this.mapper0.reset.bind(this.mapper0);
+			this.mappersR[1] = this.mapper1.reset.bind(this.mapper1);
+			this.mappersR[2] = this.mapper2.reset.bind(this.mapper2);
+			this.mappersR[3] = this.mapper3.reset.bind(this.mapper3);
 		}
 	}
 }

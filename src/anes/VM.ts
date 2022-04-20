@@ -10,9 +10,13 @@
 		 */
 		public bus: Bus;
 		/**
-		 * TV.
+		 * Frames.
 		 */
-		private TV: ImageData;
+		public frames: number = 0;
+		/**
+		 * image.
+		 */
+		private _image: ImageData;
 		/**
 		 * Next scanline.
 		 */
@@ -24,14 +28,7 @@
 		/**
 		 * Palette Set.
 		 */
-		public palettes: Array<Uint8Array>;
-		/**
-		 * Key Timer.
-		 */
-		private keyTimer: ATween;
-		/**
-		 * 按钮输入器.
-		private keyInputer: EventDispatcher;*/
+		public palettes: Array<Uint32Array>;
 		/**
 		 * Joypad Signal of Player 1,2
 		 */
@@ -86,9 +83,9 @@
 			// Create palettes (Nes only supports 64-bit colors)
 			this.palettes = [];
 			// #0 palette is default palette(defined in NesDoc)
-			this.palettes.push(new Uint8Array([0xFF757575, 0xFF271B8F, 0xFF0000AB, 0xFF47009F, 0xFF8F0077, 0xFFAB0013, 0xFFA70000, 0xFF7F0B00, 0xFF432F00, 0xFF004700, 0xFF005100, 0xFF003F17, 0xFF1B3F5F, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFBCBCBC, 0xFF0073EF, 0xFF233BEF, 0xFF8300F3, 0xFFBF00BF, 0xFFE7005B, 0xFFDB2B00, 0xFFCB4F0F, 0xFF8B7300, 0xFF009700, 0xFF00AB00, 0xFF00933B, 0xFF00838B, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF3FBFFF, 0xFF5F97FF, 0xFFA78BFD, 0xFFF77BFF, 0xFFFF77B7, 0xFFFF7763, 0xFFFF9B3B, 0xFFF3BF3F, 0xFF83D313, 0xFF4FDF4B, 0xFF58F898, 0xFF00EBDB, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFFABE7FF, 0xFFC7D7FF, 0xFFD7CBFF, 0xFFFFC7FF, 0xFFFFC7DB, 0xFFFFBFB3, 0xFFFFDBAB, 0xFFFFE7A3, 0xFFE3FFA3, 0xFFABF3BF, 0xFFB3FFCF, 0xFF9FFFF3, 0xFF000000, 0xFF000000, 0xFF000000]));
+			this.palettes.push(new Int32Array([0xFF757575, 0xFF271B8F, 0xFF0000AB, 0xFF47009F, 0xFF8F0077, 0xFFAB0013, 0xFFA70000, 0xFF7F0B00, 0xFF432F00, 0xFF004700, 0xFF005100, 0xFF003F17, 0xFF1B3F5F, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFBCBCBC, 0xFF0073EF, 0xFF233BEF, 0xFF8300F3, 0xFFBF00BF, 0xFFE7005B, 0xFFDB2B00, 0xFFCB4F0F, 0xFF8B7300, 0xFF009700, 0xFF00AB00, 0xFF00933B, 0xFF00838B, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF3FBFFF, 0xFF5F97FF, 0xFFA78BFD, 0xFFF77BFF, 0xFFFF77B7, 0xFFFF7763, 0xFFFF9B3B, 0xFFF3BF3F, 0xFF83D313, 0xFF4FDF4B, 0xFF58F898, 0xFF00EBDB, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFFABE7FF, 0xFFC7D7FF, 0xFFD7CBFF, 0xFFFFC7FF, 0xFFFFC7DB, 0xFFFFBFB3, 0xFFFFDBAB, 0xFFFFE7A3, 0xFFE3FFA3, 0xFFABF3BF, 0xFFB3FFCF, 0xFF9FFFF3, 0xFF000000, 0xFF000000, 0xFF000000]));
 			// #1 palette is used in many other emulators
-			this.palettes.push(new Uint8Array([0xFF7F7F7F, 0xFF2000B0, 0xFF2800B8, 0xFF6010A0, 0xFF982078, 0xFFB01030, 0xFFA03000, 0xFF784000, 0xFF485800, 0xFF386800, 0xFF386C00, 0xFF306040, 0xFF305080, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFBCBCBC, 0xFF4060F8, 0xFF4040FF, 0xFF9040F0, 0xFFD840C0, 0xFFD84060, 0xFFE05000, 0xFFC07000, 0xFF888800, 0xFF50A000, 0xFF48A810, 0xFF48A068, 0xFF4090C0, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF60A0FF, 0xFF5080FF, 0xFFA070FF, 0xFFF060FF, 0xFFFF60B0, 0xFFFF7830, 0xFFFFA000, 0xFFE8D020, 0xFF98E800, 0xFF70F040, 0xFF70E090, 0xFF60D0E0, 0xFF606060, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF90D0FF, 0xFFA0B8FF, 0xFFC0B0FF, 0xFFE0B0FF, 0xFFFFB8E8, 0xFFFFC8B8, 0xFFFFD8A0, 0xFFFFF090, 0xFFC8F080, 0xFFA0F0A0, 0xFFA0FFC8, 0xFFA0FFF0, 0xFFA0A0A0, 0xFF000000, 0xFF000000]));
+			this.palettes.push(new Int32Array([0xFF7F7F7F, 0xFF2000B0, 0xFF2800B8, 0xFF6010A0, 0xFF982078, 0xFFB01030, 0xFFA03000, 0xFF784000, 0xFF485800, 0xFF386800, 0xFF386C00, 0xFF306040, 0xFF305080, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFBCBCBC, 0xFF4060F8, 0xFF4040FF, 0xFF9040F0, 0xFFD840C0, 0xFFD84060, 0xFFE05000, 0xFFC07000, 0xFF888800, 0xFF50A000, 0xFF48A810, 0xFF48A068, 0xFF4090C0, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF60A0FF, 0xFF5080FF, 0xFFA070FF, 0xFFF060FF, 0xFFFF60B0, 0xFFFF7830, 0xFFFFA000, 0xFFE8D020, 0xFF98E800, 0xFF70F040, 0xFF70E090, 0xFF60D0E0, 0xFF606060, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF90D0FF, 0xFFA0B8FF, 0xFFC0B0FF, 0xFFE0B0FF, 0xFFFFB8E8, 0xFFFFC8B8, 0xFFFFD8A0, 0xFFFFF090, 0xFFC8F080, 0xFFA0F0A0, 0xFFA0FFC8, 0xFFA0FFF0, 0xFFA0A0A0, 0xFF000000, 0xFF000000]));
 			// reset
 			this.reset();
 			// set default palette
@@ -99,23 +96,15 @@
 		 */
 		public shut(): void
 		{
-			this.keyTimer.cancel();
-			this.keyTimer = null;
-
-			//TV.removeEventListener(Event.ENTER_FRAME, onUpdateBitmap);
-			this.TV = null;
-
-			//keyInputer.removeEventListener(KeyboardEvent.KEY_DOWN, onKeyDown);
-			//keyInputer.removeEventListener(KeyboardEvent.KEY_UP, onKeyUp);
-			//keyInputer = null;
+			this._image = null;
 		}
 		/**
-		 * 1.Connect TV.
+		 * 1.Connect image of TV.
 		 */
-		public connect(TV: ImageData): void
+		public connect(image: ImageData): void
 		{
-			this.TV = TV;
-			//this.TV.addEventListener(Event.ENTER_FRAME, onUpdateBitmap);
+			this._image = image;
+			this.bus.ppu.output = this._image.data;
 		}
 		/**
 		 * 2.insert cartridge
@@ -137,11 +126,11 @@
 			this.bus.numPRom32K = rom[4] / 2;
 			if (rom[4] > 0)
 			{
-				this.bus.PRGBlock = new Uint8Array(rom[4] * 0x4000);
+				this.bus.PRGBlock = new Int32Array(rom[4] * 0x4000);
 			}
 			if (rom[5] > 0)
 			{
-				this.bus.PatternTable = new Uint8Array(rom[5] * 0x2000);
+				this.bus.PatternTable = new Int32Array(rom[5] * 0x2000);
 			}
 			// byte5
 			this.bus.numVRom1K = rom[5] * 8;
@@ -184,12 +173,9 @@
 		}
 		/**
 		 * 3.Insert Joypay.
-		public insertJoypay(keyInputer: EventDispatcher, P1_r: number = 68, P1_l: number = 65, P1_u: number = 87, P1_d: number = 83, P1_se: number = 70, P1_st: number = 72, P1_b: number = 74, P1_a: number = 75, P1_b2: number = 85, P1_a2: number = 73, P2_r: number = 39, P2_l: number = 37, P2_u: number = 38, P2_d: number = 40, P2_b: number = 97, P2_a: number = 98, P2_b2: number = 100, P2_a2: number = 101): void
+		 */
+		public insertJoypay(P1_r: number = 68, P1_l: number = 65, P1_u: number = 87, P1_d: number = 83, P1_se: number = 70, P1_st: number = 72, P1_b: number = 74, P1_a: number = 75, P1_b2: number = 85, P1_a2: number = 73, P2_r: number = 39, P2_l: number = 37, P2_u: number = 38, P2_d: number = 40, P2_b: number = 97, P2_a: number = 98, P2_b2: number = 100, P2_a2: number = 101): void
 		{
-			this.keyInputer = keyInputer;
-			this.keyInputer.addEventListener(KeyboardEvent.KEY_DOWN, onKeyDown);
-			this.keyInputer.addEventListener(KeyboardEvent.KEY_UP, onKeyUp);
-
 			this.P1_r = P1_r;
 			this.P1_l = P1_l;
 			this.P1_u = P1_u;
@@ -209,48 +195,50 @@
 			this.P2_a = P2_a;
 			this.P2_b2 = P2_b2;
 			this.P2_a2 = P2_a2;
-
-			// 开启定时器
-			keyTimer.addEventListener(TimerEvent.TIMER, onUpdateKey);
-			keyTimer.start();
 		}
-		 */
 		/**
 		 * 按键输入.
-		private function onUpdateKey(e: TimerEvent): void
+		 */
+		public updateKeys(): void
 		{
-			if (stop == true)
+			if (this.stop == true)
 			{
 				return;
 			}
 			// 初始化按键信号
-			pulse1: number;
-			pulse2: number;
-			B1_bb: number = B1_b2 ? (B1_bt ^= 2) : B1_b;
-			B1_aa: number = B1_a2 ? (B1_at ^= 1) : B1_a;
-			B2_bb: number = B2_b2 ? (B2_bt ^= 2) : B2_b;
-			B2_aa: number = B2_a2 ? (B2_at ^= 1) : B2_a;
-			pulse1 = B1_aa | B1_bb | B1_se | B1_st | B1_u | B1_d | B1_l | B1_r;
-			pulse2 = B2_aa | B2_bb | B2_u | B2_d | B2_l | B2_r;
+			var pulse1: number;
+			var pulse2: number;
+			var B1_bb: number = this.B1_b2 ? (this.B1_bt ^= 2) : this.B1_b;
+			var B1_aa: number = this.B1_a2 ? (this.B1_at ^= 1) : this.B1_a;
+			var B2_bb: number = this.B2_b2 ? (this.B2_bt ^= 2) : this.B2_b;
+			var B2_aa: number = this.B2_a2 ? (this.B2_at ^= 1) : this.B2_a;
+			pulse1 = B1_aa | B1_bb | this.B1_se | this.B1_st | this.B1_u | this.B1_d | this.B1_l | this.B1_r;
+			pulse2 = B2_aa | B2_bb | this.B2_u | this.B2_d | this.B2_l | this.B2_r;
+			//if (pulse1 != 0)
+			//{
+			//	console.log(pulse1);
+			//}
 			// 输入信号
-			bus.joypad.dev0 &= 0xFFFFFF00;
-			bus.joypad.dev0 |= pulse1 & 0xFF;
-			bus.joypad.dev1 &= 0xFFFFFF00;
-			bus.joypad.dev1 |= pulse2 & 0xFF;
+			this.bus.joypad.dev0 &= 0xFFFFFF00;
+			this.bus.joypad.dev0 |= pulse1 & 0xFF;
+			this.bus.joypad.dev1 &= 0xFFFFFF00;
+			this.bus.joypad.dev1 |= pulse2 & 0xFF;
 		}
-		 */
 		/**
 		 * 图象输出.
-		private function onUpdateBitmap(e: Event): void
+		 */
+		public onFrame(): void
 		{
-			if (stop == true)
+			++this.frames;
+			if (this.stop)
 			{
 				return;
 			}
 			// output image
-			TV.bitmapData.lock();
-			TV.bitmapData.setVector(TV.bitmapData.rect, bus.ppu.output);
-			TV.bitmapData.unlock();
+			//this._image.data = this.bus.ppu.output;
+			//image.bitmapData.lock();
+			//image.bitmapData.setVector(image.bitmapData.rect, bus.ppu.output);
+			//image.bitmapData.unlock();
 			// remark:NTSC mode
 			// PPU cycle is 21.48MHz divide by 4
 			// one PPU clock cycle = three CPU clock cycle
@@ -265,46 +253,45 @@
 
 			// because of DMA,so VM maybe scan multi-line in one times
 			// 因为DMA,所以可能一次扫描多条扫描线
-
-			a: number = getTimer();
-			bankCC: number = 0;
+			var bankCC: number = 0;
 			for (; ;)
 			{
-				// 1.CPU CC of HDraw of need to execute(执行HDraw相应的CPU时钟频率)
+				// 1.CPU CC corresponding to HDraw
 				bankCC = 85;
-				if (bus.cpu.currentCC < bankCC)
+				if (this.bus.cpu.onceExecedCC < bankCC)
 				{
-					if (bus.cpu.exec(number(bankCC - bus.cpu.currentCC)) == false)
+					if (this.bus.cpu.exec(bankCC - this.bus.cpu.onceExecedCC) == false)
 					{
 						return;
 					}
 				}
-				// 3.reset CPU CC(重置CPU时钟频率)
-				bus.cpu.currentCC -= bankCC;
-				// 4.render scanline(渲染扫描线)
-				nextScanline = bus.ppu.renderLine();
-				// 5.CPU CC of HBlank of need to execute(执行HBalnk对应的CPU时钟频率)
+				// 3.reset CPU CC
+				this.bus.cpu.onceExecedCC -= bankCC;
+				// 4.render scanline
+				this.nextScanline = this.bus.ppu.renderLine();
+				// 5.CPU CC corresponding to HBlank
 				bankCC = 28;
-				if (bus.cpu.currentCC < bankCC)
+				if (this.bus.cpu.onceExecedCC < bankCC)
 				{
-					if (bus.cpu.exec(number(bankCC - bus.cpu.currentCC)) == false)
+					if (this.bus.cpu.exec(bankCC - this.bus.cpu.onceExecedCC) == false)
 					{
 						return;
 					}
 				}
-				// 7.reset CPU CC(重置CPU时钟频率)
-				bus.cpu.currentCC -= bankCC;
-				// 所有扫描线渲染结束,一帧结束
-				if (nextScanline == 0)
+				// 7.reset CPU CC
+				this.bus.cpu.onceExecedCC -= bankCC;
+				// 8.All scanlines are complete
+				if (this.nextScanline == 0)
 				{
-					// 声音处理
-					bus.apu.renderSamples(735);
+					//this.bus.apu.renderSamples(735);
 					break;
 				}
 			}
-			//trace(_ii++,bus.cpu.cpuRunCC);
+			if (this.frames % 2 == 0)
+			{
+				this.updateKeys();
+			}
 		}
-		 */
 		/**
 		 * Reset.
 		 */
@@ -313,7 +300,7 @@
 			this.nextScanline = 0;
 			if (this.bus)
 			{
-				var tmp: Uint8Array = this.bus.pal;
+				var tmp: Int32Array = this.bus.pal;
 			}
 			this.bus = null;
 			this.bus = new Bus();
@@ -321,159 +308,160 @@
 		}
 		/**
 		 * @private
-		private onKeyDown(e: KeyboardEvent): void
+		 */
+		public onKeyDown(keyCode: number): void
 		{
-			if (e.keyCode == P1_r)
+			console.log(keyCode);
+			if (keyCode == this.P1_r)
 			{
-				B1_r = 128;
+				this.B1_r = 128;
 			}
-			else if (e.keyCode == P1_l)
+			else if (keyCode == this.P1_l)
 			{
-				B1_l = 64;
+				this.B1_l = 64;
 			}
-			else if (e.keyCode == P1_d)
+			else if (keyCode == this.P1_d)
 			{
-				B1_d = 32;
+				this.B1_d = 32;
 			}
-			else if (e.keyCode == P1_u)
+			else if (keyCode == this.P1_u)
 			{
-				B1_u = 16;
+				this.B1_u = 16;
 			}
-			else if (e.keyCode == P1_st)
+			else if (keyCode == this.P1_st)
 			{
-				B1_st = 8;
+				this.B1_st = 8;
 			}
-			else if (e.keyCode == P1_se)
+			else if (keyCode == this.P1_se)
 			{
-				B1_se = 4;
+				this.B1_se = 4;
 			}
-			else if (e.keyCode == P1_b)
+			else if (keyCode == this.P1_b)
 			{
-				B1_b = 2;
+				this.B1_b = 2;
 			}
-			else if (e.keyCode == P1_a)
+			else if (keyCode == this.P1_a)
 			{
-				B1_a = 1;
+				this.B1_a = 1;
 			}
-			else if (e.keyCode == P1_b2)
+			else if (keyCode == this.P1_b2)
 			{
-				B1_b2 = 1;
+				this.B1_b2 = 1;
 			}
-			else if (e.keyCode == P1_a2)
+			else if (keyCode == this.P1_a2)
 			{
-				B1_a2 = 1;
+				this.B1_a2 = 1;
 			}
-			else if (e.keyCode == P2_r)
+			else if (keyCode == this.P2_r)
 			{
-				B2_r = 128;
+				this.B2_r = 128;
 			}
-			else if (e.keyCode == P2_l)
+			else if (keyCode == this.P2_l)
 			{
-				B2_l = 64;
+				this.B2_l = 64;
 			}
-			else if (e.keyCode == P2_d)
+			else if (keyCode == this.P2_d)
 			{
-				B2_d = 32;
+				this.B2_d = 32;
 			}
-			else if (e.keyCode == P2_u)
+			else if (keyCode == this.P2_u)
 			{
-				B2_u = 16;
+				this.B2_u = 16;
 			}
-			else if (e.keyCode == P2_b)
+			else if (keyCode == this.P2_b)
 			{
-				B2_b = 2;
+				this.B2_b = 2;
 			}
-			else if (e.keyCode == P2_a)
+			else if (keyCode == this.P2_a)
 			{
-				B2_a = 1;
+				this.B2_a = 1;
 			}
-			else if (e.keyCode == P2_b2)
+			else if (keyCode == this.P2_b2)
 			{
-				B2_b2 = 1;
+				this.B2_b2 = 1;
 			}
-			else if (e.keyCode == P2_a2)
+			else if (keyCode == this.P2_a2)
 			{
-				B2_a2 = 1;
+				this.B2_a2 = 1;
 			}
 		}
-		 */
 		/**
 		 * @private
-		private onKeyUp(e: KeyboardEvent): void
+		 */
+		public onKeyUp(keyCode: number): void
 		{
-			if (e.keyCode == P1_r)
+			if (keyCode == this.P1_r)
 			{
-				B1_r = 0;
+				this.B1_r = 0;
 			}
-			else if (e.keyCode == P1_l)
+			else if (keyCode == this.P1_l)
 			{
-				B1_l = 0;
+				this.B1_l = 0;
 			}
-			else if (e.keyCode == P1_d)
+			else if (keyCode == this.P1_d)
 			{
-				B1_d = 0;
+				this.B1_d = 0;
 			}
-			else if (e.keyCode == P1_u)
+			else if (keyCode == this.P1_u)
 			{
-				B1_u = 0;
+				this.B1_u = 0;
 			}
-			else if (e.keyCode == P1_st)
+			else if (keyCode == this.P1_st)
 			{
-				B1_st = 0;
+				this.B1_st = 0;
 			}
-			else if (e.keyCode == P1_se)
+			else if (keyCode == this.P1_se)
 			{
-				B1_se = 0;
+				this.B1_se = 0;
 			}
-			else if (e.keyCode == P1_b)
+			else if (keyCode == this.P1_b)
 			{
-				B1_b = 0;
+				this.B1_b = 0;
 			}
-			else if (e.keyCode == P1_a)
+			else if (keyCode == this.P1_a)
 			{
-				B1_a = 0;
+				this.B1_a = 0;
 			}
-			else if (e.keyCode == P1_b2)
+			else if (keyCode == this.P1_b2)
 			{
-				B1_b2 = 0;
+				this.B1_b2 = 0;
 			}
-			else if (e.keyCode == P1_a2)
+			else if (keyCode == this.P1_a2)
 			{
-				B1_a2 = 0;
+				this.B1_a2 = 0;
 			}
-			else if (e.keyCode == P2_r)
+			else if (keyCode == this.P2_r)
 			{
-				B2_r = 0;
+				this.B2_r = 0;
 			}
-			else if (e.keyCode == P2_l)
+			else if (keyCode == this.P2_l)
 			{
-				B2_l = 0;
+				this.B2_l = 0;
 			}
-			else if (e.keyCode == P2_d)
+			else if (keyCode == this.P2_d)
 			{
-				B2_d = 0;
+				this.B2_d = 0;
 			}
-			else if (e.keyCode == P2_u)
+			else if (keyCode == this.P2_u)
 			{
-				B2_u = 0;
+				this.B2_u = 0;
 			}
-			else if (e.keyCode == P2_b)
+			else if (keyCode == this.P2_b)
 			{
-				B2_b = 0;
+				this.B2_b = 0;
 			}
-			else if (e.keyCode == P2_a)
+			else if (keyCode == this.P2_a)
 			{
-				B2_a = 0;
+				this.B2_a = 0;
 			}
-			else if (e.keyCode == P2_b2)
+			else if (keyCode == this.P2_b2)
 			{
-				B2_b2 = 0;
+				this.B2_b2 = 0;
 			}
-			else if (e.keyCode == P2_a2)
+			else if (keyCode == this.P2_a2)
 			{
-				B2_a2 = 0;
+				this.B2_a2 = 0;
 			}
 		}
-		 */
 	}
 }

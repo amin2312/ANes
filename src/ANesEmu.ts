@@ -4,13 +4,26 @@
 class ANesEmu
 {
 	/**
-	 * 显示器.
+	 * ROM.
 	 */
-	//public TV: Sprite = new Sprite;
+	private _rom: ArrayBuffer;
 	/**
-	 * 游戏机.
+	 * Stats.
 	 */
-	public vm: anes.VM;
+	private _stats: Stats = null;
+	/**
+	 * TV.
+	 */
+	public TV: HTMLCanvasElement = null;
+	/**
+	 * the image data bind of TV
+	 */
+	public TVD: ImageData = null;
+	/**
+	 * Virtual Machine
+	 */
+	public vm: anes.VM = null;
+
 	/**
 	 * [二进制文件] 图像.
 	 */
@@ -22,27 +35,22 @@ class ANesEmu
 	//public static ui: UI;
 	/**
 	 * 属性.
-	public static GAP: number = 12;
-	public static EDGE: number = 24;
 	public static output: TextField = new TextField;
 	private binLoader: URLLoader;
 	private tracker: Loader;
 	private romUrl: String;
 	 */
 	/**
-	 * 构造函数.
+	 * Constructor.
 	 */
-	public ANesEmulator()
+	constructor()
 	{
-		// 1.填充背景
-		/*this.graphics.beginFill(0);
-		this.graphics.drawRect(0, 0, stage.stageWidth, stage.stageHeight);
-		// 2.创建标签
-		output.defaultTextFormat = new TextFormat('Consolas', 12, 0xFFFFFF);
-		output.autoSize = TextFieldAutoSize.CENTER;
-		output.x = number(stage.stageWidth / 2);
-		output.y = number((stage.stageHeight - 26) / 2);
-		addChild(output);
+		this.showPerformance();
+		this.loadRomFromUrl('index.rom', this.onLoadROM.bind(this));
+		document.addEventListener('keydown', this.onKeyDown.bind(this));
+		document.addEventListener('keyup', this.onKeyUp.bind(this));
+		window.requestAnimationFrame(this.onFrame.bind(this));
+		/*
 		// 3.加载ROM
 		romUrl = this.loaderInfo.parameters.romUrl || 'default.txt';
 		binLoader = new URLLoader;
@@ -56,7 +64,122 @@ class ANesEmu
 		uiLoader: Loader = new Loader;
 		uiLoader.loadBytes(new UiBin);
 		uiLoader.contentLoaderInfo.addEventListener(Event.COMPLETE, onCompleteUI);
-		addChild(uiLoader);*/
+		addChild(uiLoader);
+		*/
+	}
+	/**
+	 * Load ROM from url.
+	 */
+	public loadRomFromUrl(url: string, onload: (bytes: ArrayBuffer) => void)
+	{
+		var xhr = new XMLHttpRequest();
+		xhr.open('POST', url, true);
+		xhr.responseType = 'arraybuffer';
+		xhr.onreadystatechange = function ()
+		{
+			if (xhr.readyState == 4)
+			{
+				if (xhr.status == 200)
+				{
+					onload(xhr.response);
+				}
+				else
+				{
+					console.log(xhr.responseText);
+					alert('[LOAD ROM FAIL] ' + xhr.responseText);
+				}
+			}
+		};
+		xhr.send();
+	};
+	/**
+	 * @private
+	 */
+	private onLoadROM(bytes: ArrayBuffer): void
+	{
+		this._rom = bytes;
+		// init TV
+		var canvas = document.getElementById('myCanvas') as HTMLCanvasElement;
+		var ctx = canvas.getContext('2d');
+		this.TV = canvas;
+		this.TVD = ctx.createImageData(canvas.width, canvas.height);
+		// replay game
+		this.replay();
+	}
+	/**
+	 * Replay.
+	 */
+	public replay(): void
+	{
+		if (this.vm)
+		{
+			this.vm.shut();
+		}
+		// 1.create VM
+		this.vm = new anes.VM();
+		// 2.connect TV
+		this.vm.connect(this.TVD);
+		// 3.insert cartridge
+		this.vm.insertCartridge(this._rom);
+		// 连接手柄
+		this.vm.insertJoypay();
+	}
+	/**
+	 * @private
+	 */
+	private onFrame(): void
+	{
+		if (this._stats != null)
+		{
+			this._stats.begin();
+		}
+		window.requestAnimationFrame(this.onFrame.bind(this));
+		if (this.TV != null && this.TVD != null)
+		{
+			var ctx = this.TV.getContext('2d');
+			ctx.putImageData(this.TVD, 0, 0);
+		}
+		if (this.vm != null)
+		{
+			this.vm.onFrame();
+		}
+		if (this._stats != null)
+		{
+			this._stats.end();
+		}
+	}
+	/**
+	 * Show performance.
+	 */
+	private showPerformance()
+	{
+		if (!(window as any).Stats) 
+		{
+			return;
+		}
+		this._stats = new Stats();
+		this._stats.showPanel(0); /* 0: fps, 1: ms, 2: mb, 3+: custom */
+		document.body.appendChild(this._stats.dom);
+	}
+	/**
+	 * @private
+	 */
+	private onKeyDown(e: KeyboardEvent): void
+	{
+		if(this.vm != null)
+		{
+			this.vm.onKeyDown(e.keyCode);
+		}
+	}
+	/**
+	 * @private
+	 */
+	private onKeyUp(e: KeyboardEvent): void
+	{
+		if(this.vm != null)
+		{
+			this.vm.onKeyUp(e.keyCode);
+		}
 	}
 	/**
 	 * @private
@@ -87,52 +210,6 @@ class ANesEmu
 	 */
 	/**
 	 * @private
-	private function onCompleteBin(e: Event): void
-	{
-		output.visible = false;
-		// 添加显示器
-		TV.scaleX = 2;
-		TV.scaleY = 2;
-		TV.x = EDGE;
-		TV.y = EDGE + GAP;
-		TV.addChild(new Bitmap(new BitmapData(256, 240, false, 0)));
-		shape: Shape = new Shape;
-		shape.graphics.beginFill(0);
-		shape.graphics.drawRect(0, 0, 256, 8);
-		shape.graphics.drawRect(0, 232, 256, 8);
-		TV.addChild(shape);
-		addChildAt(TV, 0);
-		replay();
-	}
-	 */
-	/**
-	 * 重玩.
-	 */
-	public replay(): void
-	{
-		if (this.vm)
-		{
-			this.vm.shut();
-		}
-		// 创建虚拟机
-		this.vm = new anes.VM();
-		// 连接显示器
-		//this.vm.connect(TV.getChildAt(0) as Bitmap);
-		// 插卡
-		//this.vm.insertCartridge(binLoader.data);
-		// 连接手柄
-		//this.vm.insertJoypay(stage);
-	}
-	/**
-	 * @private
-	private function onCompleteUI(e: Event): void
-	{
-		ui = new UI;
-		addChild(ui);
-	}
-	 */
-	/**
-	 * @private
 	private function onLoadingBin(e: ProgressEvent): void
 	{
 		if (e.bytesTotal == 0)
@@ -152,4 +229,5 @@ class ANesEmu
 	}
 	 */
 }
-
+//debugger;
+var ANewEmu = new ANesEmu();

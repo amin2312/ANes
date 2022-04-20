@@ -19,26 +19,20 @@ namespace anes
 		public chN: NOISE = new NOISE;
 		public chD: DPCM = new DPCM;
 
-		public vblLength: Float64Array = new Float64Array([5, 127, 10, 1, 19, 2, 40, 3, 80, 4, 30, 5, 7, 6, 13, 7, 6, 8, 12, 9, 24, 10, 48, 11, 96, 12, 36, 13, 8, 14, 16, 15]);
-		public freqLimit: Float64Array = new Float64Array([0x03FF, 0x0555, 0x0666, 0x071C, 0x0787, 0x07C1, 0x07E0, 0x07F0]);
-		public dutyLut: Float64Array = new Float64Array([2, 4, 8, 12]);
-		public noiseFreq: Float64Array = new Float64Array([4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068]);
-		public dpcmCycles: Float64Array = new Float64Array([428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106, 85, 72, 54]);
-
-		public frameCycles: number;
-		///public FrameCount:number;
-		///public FrameType:number;
-		///public FrameIRQ:number;
-		///public FrameIRQoccur:number;
+		public vblLength = new Int32Array([5, 127, 10, 1, 19, 2, 40, 3, 80, 4, 30, 5, 7, 6, 13, 7, 6, 8, 12, 9, 24, 10, 48, 11, 96, 12, 36, 13, 8, 14, 16, 15]);
+		public freqLimit = new Int32Array([0x03FF, 0x0555, 0x0666, 0x071C, 0x0787, 0x07C1, 0x07E0, 0x07F0]);
+		public dutyLut = new Int32Array([2, 4, 8, 12]);
+		public noiseFreq = new Int32Array([4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068]);
+		public dpcmCycles = new Int32Array([428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106, 85, 72, 54]);
 
 		public reg4015: number;
 		public sync_reg4015: number;
 
-		public cpu_clock: number;
-		public sampling_rate: number;
-		public cycle_rate: number;
+		public frameCycles: number;
+		public samplingRate: number;
+		public cycleRate: number;
 		/**
-		 * 构造函数.
+		 * Constructor.
 		 */
 		constructor(bus: Bus)
 		{
@@ -46,25 +40,24 @@ namespace anes
 			this.bus = bus;
 
 			this.bus = bus;
-			///FrameIRQ = 0xC0;
-			this.frameCycles = 0;
-			///FrameIRQoccur = 0;
-			///FrameCount = 0;
-			///FrameType = 0;
-
 			this.reg4015 = this.sync_reg4015 = 0;
-
-			this.cpu_clock = 1789772.5;
-			this.sampling_rate = 22050;
-			this.cycle_rate = (1789772.5 * 65536 / 22050);
+			this.frameCycles = 0;
+			this.samplingRate = 22050;
+			this.cycleRate = (CPU.frequency * 65536 / 22050);
 
 			// 监听样本事件
 			//this.sound.addEventListener(SampleDataEvent.SAMPLE_DATA, this.onSampleDataEvent);
 			//this.sound.play();
 		}
+		/**
+		 * Reset.
+		 */
 		public reset(): void
 		{
 		}
+		/**
+		 * Read data.
+		 */
 		public r(addr: number): number
 		{
 			var data: number = 0;
@@ -74,12 +67,15 @@ namespace anes
 			}
 			return data;
 		}
+		/**
+		 * Write data.
+		 */
 		public w(addr: number, data: number): void
 		{
 			if (addr >= 0x4000 && addr <= 0x401F)
 			{
 				this.virtualWrite(addr, data);
-				// 加入原始样本
+				// add samples
 				var s: SAMPLE = new SAMPLE;
 				s.time = this.bus.cpu.execedCC;
 				s.addr = addr;
@@ -88,7 +84,7 @@ namespace anes
 			}
 		}
 		/**
-		 * 获取样本.
+		 * Shift sample.
 		 */
 		public shiftSample(writetime: number): SAMPLE
 		{
@@ -144,9 +140,9 @@ namespace anes
 		}
 		 */
 		/**
-		 * 渲染声音样本.
+		 * Render samples.
 		 */
-		public renderSamples(dwSize: number): void
+		public renderSamples(size: number): void
 		{
 			var output: number;
 			var writeTime: number = 0;
@@ -155,20 +151,20 @@ namespace anes
 			var addr: number;
 			var data: number;
 
-			var vol: Uint8Array = new Uint8Array(24);
+			var vol = new Uint32Array(24);
 			vol[0] = 0x0F0;
 			vol[1] = 0x0F0;
 			vol[2] = 0x130;
 			vol[3] = 0x0C0;
 			vol[4] = 0x0F0;
 
-			// 刷入所有样本
+			// flush all samples
 			if (this.elapsedTime > this.bus.cpu.execedCC)
 			{
 				while (this.samples.length)
 				{
 					s = this.samples.shift();
-					// 写入数据
+					// write data
 					addr = s.addr;
 					data = s.data;
 					if (addr >= 0x4000 && addr <= 0x401F)
@@ -177,8 +173,8 @@ namespace anes
 					}
 				}
 			}
-			// 逐个刷入样本
-			while (dwSize--)
+			// flush each sample
+			while (size--)
 			{
 				writeTime = this.elapsedTime;
 				for (; ;)
@@ -188,7 +184,7 @@ namespace anes
 					{
 						break;
 					}
-					// 写入数据
+					// write data
 					addr = s.addr;
 					data = s.data;
 					if (addr >= 0x4000 && addr <= 0x401F)
@@ -196,7 +192,7 @@ namespace anes
 						this.realWrite(addr, data);
 					}
 				}
-				// 输出声音样本
+				// merge rendering results
 				output = 0;
 				output += this.renderRectangle(this.chR[0]) * vol[0];
 				output += this.renderRectangle(this.chR[1]) * vol[1];
@@ -213,20 +209,20 @@ namespace anes
 					output = -0x8000;
 				}
 				output /= 2;
-				// 写入FLASH声音样本
+				// write sample to buffer
 				var multiplier: number = 1 / 32768;
 				var sample: number = output * multiplier * 5;
 				//this.soundBuffer.writeFloat(sample);
 				//this.soundBuffer.writeFloat(sample);
-				// 累加时间
+				// sum time
 				//elapsedTime += 6.764063492063492;
 				this.elapsedTime += 81.168820;
 			}
-			// 同步时间
+			// sync time
 			this.elapsedTime = this.bus.cpu.execedCC;
 		}
 		/**
-		 * 真正写入.
+		 * Real write data.
 		 */
 		public realWrite(addr: number, data: number): void
 		{
@@ -525,7 +521,7 @@ namespace anes
 			}
 		}
 		/**
-		 * 写入(虚拟).
+		 * Virtual Write Data.
 		 */
 		public virtualWrite(addr: number, data: number): void
 		{
@@ -625,7 +621,6 @@ namespace anes
 							if (!this.chD.sync_irq_gen)
 							{
 								this.chD.sync_irq_enable = 0;
-								///nes->cpu->ClrIRQ( IRQ_DPCM );
 							}
 							break;
 						case 1:
@@ -666,7 +661,6 @@ namespace anes
 						this.chD.sync_enable = 0;
 						this.chD.sync_dmalength = 0;
 						this.chD.sync_irq_enable = 0;
-						///nes.cpu.ClrIRQ( IRQ_DPCM );
 					}
 					else
 					{
@@ -679,20 +673,12 @@ namespace anes
 					}
 					break;
 				case 0x4017:
-					// SyncWrite4017(data);
 					this.frameCycles = 0;
-					///FrameIRQ = data;
-					///FrameIRQoccur = 0;
-					///nes.cpu.ClrIRQ( IRQ_FRAMEIRQ );
-					///FrameType = (data & 0x80) ? 1 : 0;
-					///FrameCount = 0;
 					if (data & 0x80)
 					{
 						this.UpdateFrame();
 					}
 					///FrameCount = 1;
-					this.frameCycles = 7458;
-					break;
 				case 0x4018:
 					// syncUpdateRectangle
 					for (var i: number = 0; i < 2; i++)
@@ -747,34 +733,14 @@ namespace anes
 			}
 		}
 		/**
-		 * 更新帧.
+		 * Update Frame.
 		 */
 		public UpdateFrame(): void
 		{
-			/*///
-			if(!FrameCount)
-			{
-			if(!(FrameIRQ & 0xC0) && nes.GetFrameIRQmode())
-			{
-			FrameIRQoccur = 0xFF;
-			nes.cpu.SetIRQ(IRQ_FRAMEIRQ);
-			}
-			}
-			*/
-			////if(FrameCount == 3)
-			///{
-			///	if(FrameIRQ & 0x80)
-			///	{
-			///		frameCycles += 7458;
-			//	}
-			///}
-
-			///bus.cpu.w1(0x4018,FrameCount);
 			this.bus.cpu.w(0x4018, 0);
-			///FrameCount = (FrameCount + 1) & 3;
 		}
 		/**
-		 * 渲染方形波.
+		 * Render Rectangle Wave.
 		 */
 		public renderRectangle(ch: RECTANGLE): number
 		{
@@ -793,13 +759,13 @@ namespace anes
 			var volume: number = ch.nowvolume;
 			var total: number;
 			var sample_weight: number = ch.phaseacc;
-			if (sample_weight > this.cycle_rate)
+			if (sample_weight > this.cycleRate)
 			{
-				sample_weight = this.cycle_rate;
+				sample_weight = this.cycleRate;
 			}
 			total = (ch.adder < ch.duty) ? sample_weight : -sample_weight;
 			var freq: number = (ch.freq + 1) << 16;
-			ch.phaseacc -= this.cycle_rate;
+			ch.phaseacc -= this.cycleRate;
 			while (ch.phaseacc < 0)
 			{
 				ch.phaseacc += freq;
@@ -812,10 +778,10 @@ namespace anes
 				}
 				total += (ch.adder < ch.duty) ? sample_weight : -sample_weight;
 			}
-			return Math.floor(volume * total / this.cycle_rate + 0.5);
+			return Math.floor(volume * total / this.cycleRate + 0.5);
 		}
 		/**
-		 * 渲染三角波.
+		 * Render Triangle Wave.
 		 */
 		public renderTriangle(): number
 		{
@@ -829,12 +795,12 @@ namespace anes
 			{
 				return this.chT.nowvolume * vol / 256;
 			}
-			this.chT.phaseacc -= this.cycle_rate;
+			this.chT.phaseacc -= this.cycleRate;
 			if (this.chT.phaseacc >= 0)
 			{
 				return this.chT.nowvolume * vol / 256;
 			}
-			if (this.chT.freq > this.cycle_rate)
+			if (this.chT.freq > this.cycleRate)
 			{
 				this.chT.phaseacc += this.chT.freq;
 				this.chT.adder = (this.chT.adder + 1) & 0x1F;
@@ -873,7 +839,7 @@ namespace anes
 			return (total / num_times) * vol / 256;
 		}
 		/**
-		 * 渲染噪声波.
+		 * Render Noise Wave.
 		 */
 		public renderNoise(): number
 		{
@@ -886,12 +852,12 @@ namespace anes
 				this.chN.nowvolume = this.chN.volume << 8;
 			}
 			var vol: number = 256 - ((this.chD.reg[1] & 0x01) + this.chD.dpcm_value * 2);
-			this.chN.phaseacc -= this.cycle_rate;
+			this.chN.phaseacc -= this.cycleRate;
 			if (this.chN.phaseacc >= 0)
 			{
 				return this.chN.output * vol / 256;
 			}
-			if (this.chN.freq > this.cycle_rate)
+			if (this.chN.freq > this.cycleRate)
 			{
 				this.chN.phaseacc += this.chN.freq;
 				if (this.noiseShiftreg(this.chN.xor_tap))
@@ -928,14 +894,13 @@ namespace anes
 			return (total / num_times) * vol / 256;
 		}
 		/**
-		 * 渲染差分脉冲编码调制.
+		 * Render DPCM.
 		 */
 		public renderDPCM(): number
 		{
 			if (this.chD.dmalength)
 			{
-				this.chD.phaseacc -= this.cycle_rate;
-
+				this.chD.phaseacc -= this.cycleRate;
 				while (this.chD.phaseacc < 0)
 				{
 					this.chD.phaseacc += this.chD.freq;
@@ -951,7 +916,6 @@ namespace anes
 							this.chD.address++;
 						}
 					}
-
 					if (!(--this.chD.dmalength))
 					{
 						if (this.chD.looping)
@@ -981,30 +945,10 @@ namespace anes
 					}
 				}
 			}
-			/*
-			chD.dpcm_output_real = ((chD.reg[1] & 0x01) + chD.dpcm_value * 2) - 0x40;
-			if(Math.abs(chD.dpcm_output_real - chD.dpcm_output_fake) <= 8)
-			{
-			chD.dpcm_output_fake = chD.dpcm_output_real;
-			chD.output = chD.dpcm_output_real << 8;
-			}
-			else
-			{
-			if(chD.dpcm_output_real > chD.dpcm_output_fake)
-			{
-			chD.dpcm_output_fake += 8;
-			}
-			else
-			{
-			chD.dpcm_output_fake -= 8;
-			}
-			chD.output = chD.dpcm_output_fake << 8;
-			}
-			*/
 			return this.chD.output;
 		}
 		/**
-		 * 更新DPCM(虚拟).
+		 * Update Virtaul DPCM.
 		 */
 		public virtualUpdateDPCM(cycles: number): void
 		{
@@ -1014,7 +958,6 @@ namespace anes
 				this.frameCycles -= 7458;
 				this.bus.cpu.w(0x4018, 0); // 写入4018
 			}
-			// 更新DPCM(虚拟)
 			if (this.chD.sync_enable)
 			{
 				this.chD.sync_cycles -= cycles;
@@ -1027,7 +970,6 @@ namespace anes
 					this.chD.sync_cycles += this.chD.sync_cache_cycles;
 					if (this.chD.sync_dmalength)
 					{
-						//if(--chD.sync_dmalength < 2)
 						if (!(--this.chD.sync_dmalength))
 						{
 							if (this.chD.sync_looping)
@@ -1040,7 +982,6 @@ namespace anes
 								if (this.chD.sync_irq_gen)
 								{
 									this.chD.sync_irq_enable = 0xFF;
-									///nes->cpu->SetIRQ( IRQ_DPCM );
 								}
 							}
 						}
@@ -1069,10 +1010,8 @@ namespace anes
 			return (bit0 ^ 1);
 		}
 	}
-
-
 	/**
-	 * 样本.
+	 * Sample.
 	 */
 	class SAMPLE
 	{
@@ -1080,9 +1019,8 @@ namespace anes
 		public addr: number;
 		public data: number;
 	}
-
 	/**
-	 * 方形波.
+	 * Rectangle Wave.
 	 */
 	class RECTANGLE
 	{
@@ -1122,9 +1060,8 @@ namespace anes
 		public dummy2: number;
 		public sync_len_count: number;
 	}
-
 	/**
-	 * 三角波.
+	 * Triangle Wave.
 	 */
 	class TRIANGLE
 	{
@@ -1151,9 +1088,8 @@ namespace anes
 		public sync_len_count: number;
 		public sync_lin_count: number;
 	}
-
 	/**
-	 * 噪声波.
+	* Noise Wave.
 	 */
 	class NOISE
 	{
@@ -1185,9 +1121,8 @@ namespace anes
 		public dummy1: number;
 		public sync_len_count: number;
 	}
-
 	/**
-	 * 差分脉冲编码调制.
+	 * DPCM.
 	 */
 	class DPCM
 	{
@@ -1220,5 +1155,4 @@ namespace anes
 		public sync_dmalength: number;
 		public sync_cache_dmalength: number;
 	}
-
 }
