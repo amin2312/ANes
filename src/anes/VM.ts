@@ -84,7 +84,6 @@
 			this.palettes = [];
 			// #0 palette is default palette(defined in NesDoc)
 			/* ARGB */ this.palettes.push(new Uint32Array([0xFF757575, 0xFF271B8F, 0xFF0000AB, 0xFF47009F, 0xFF8F0077, 0xFFAB0013, 0xFFA70000, 0xFF7F0B00, 0xFF432F00, 0xFF004700, 0xFF005100, 0xFF003F17, 0xFF1B3F5F, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFBCBCBC, 0xFF0073EF, 0xFF233BEF, 0xFF8300F3, 0xFFBF00BF, 0xFFE7005B, 0xFFDB2B00, 0xFFCB4F0F, 0xFF8B7300, 0xFF009700, 0xFF00AB00, 0xFF00933B, 0xFF00838B, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF3FBFFF, 0xFF5F97FF, 0xFFA78BFD, 0xFFF77BFF, 0xFFFF77B7, 0xFFFF7763, 0xFFFF9B3B, 0xFFF3BF3F, 0xFF83D313, 0xFF4FDF4B, 0xFF58F898, 0xFF00EBDB, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFFABE7FF, 0xFFC7D7FF, 0xFFD7CBFF, 0xFFFFC7FF, 0xFFFFC7DB, 0xFFFFBFB3, 0xFFFFDBAB, 0xFFFFE7A3, 0xFFE3FFA3, 0xFFABF3BF, 0xFFB3FFCF, 0xFF9FFFF3, 0xFF000000, 0xFF000000, 0xFF000000]));
-			/* ARGB */ //this.palettes.push(new Uint32Array([0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF]));
 			// #1 palette is used in many other emulators
 			/* ARGB */ this.palettes.push(new Uint32Array([0xFF7F7F7F, 0xFF2000B0, 0xFF2800B8, 0xFF6010A0, 0xFF982078, 0xFFB01030, 0xFFA03000, 0xFF784000, 0xFF485800, 0xFF386800, 0xFF386C00, 0xFF306040, 0xFF305080, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFBCBCBC, 0xFF4060F8, 0xFF4040FF, 0xFF9040F0, 0xFFD840C0, 0xFFD84060, 0xFFE05000, 0xFFC07000, 0xFF888800, 0xFF50A000, 0xFF48A810, 0xFF48A068, 0xFF4090C0, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF60A0FF, 0xFF5080FF, 0xFFA070FF, 0xFFF060FF, 0xFFFF60B0, 0xFFFF7830, 0xFFFFA000, 0xFFE8D020, 0xFF98E800, 0xFF70F040, 0xFF70E090, 0xFF60D0E0, 0xFF606060, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF90D0FF, 0xFFA0B8FF, 0xFFC0B0FF, 0xFFE0B0FF, 0xFFFFB8E8, 0xFFFFC8B8, 0xFFFFD8A0, 0xFFFFF090, 0xFFC8F080, 0xFFA0F0A0, 0xFFA0FFC8, 0xFFA0FFF0, 0xFFA0A0A0, 0xFF000000, 0xFF000000]));
 			// reset
@@ -174,7 +173,7 @@
 		/**
 		 * 3.Insert Joypay.
 		 */
-		public insertJoypay(P1_r: number = 68, P1_l: number = 65, P1_u: number = 87, P1_d: number = 83, P1_se: number = 70, P1_st: number = 72, P1_b: number = 74, P1_a: number = 75, P1_b2: number = 85, P1_a2: number = 73, P2_r: number = 39, P2_l: number = 37, P2_u: number = 38, P2_d: number = 40, P2_b: number = 97, P2_a: number = 98, P2_b2: number = 100, P2_a2: number = 101): void
+		public insertJoypay(P1_r: number = 68, P1_l: number = 65, P1_u: number = 87, P1_d: number = 83, P1_se: number = 70, P1_st: number = 71, P1_b: number = 86, P1_a: number = 66, P1_b2: number = 67, P1_a2: number = 78, P2_r: number = 39, P2_l: number = 37, P2_u: number = 38, P2_d: number = 40, P2_b: number = 219, P2_a: number = 221, P2_b2: number = 189, P2_a2: number = 187): void
 		{
 			this.P1_r = P1_r;
 			this.P1_l = P1_l;
@@ -197,7 +196,7 @@
 			this.P2_a2 = P2_a2;
 		}
 		/**
-		 * 按键输入.
+		 * Update key states.
 		 */
 		public updateKeys(): void
 		{
@@ -205,40 +204,32 @@
 			{
 				return;
 			}
-			// 初始化按键信号
+			// initialize key signal
 			var pulse1: number;
 			var pulse2: number;
 			var B1_bb: number = this.B1_b2 ? (this.B1_bt ^= 2) : this.B1_b;
 			var B1_aa: number = this.B1_a2 ? (this.B1_at ^= 1) : this.B1_a;
 			var B2_bb: number = this.B2_b2 ? (this.B2_bt ^= 2) : this.B2_b;
 			var B2_aa: number = this.B2_a2 ? (this.B2_at ^= 1) : this.B2_a;
-			pulse1 = B1_aa | B1_bb | this.B1_se | this.B1_st | this.B1_u | this.B1_d | this.B1_l | this.B1_r;
+			pulse1 = B1_aa | B1_bb | this.B1_u | this.B1_d | this.B1_l | this.B1_r | this.B1_se | this.B1_st;
 			pulse2 = B2_aa | B2_bb | this.B2_u | this.B2_d | this.B2_l | this.B2_r;
-			//if (pulse1 != 0)
-			//{
-			//	console.log(pulse1);
-			//}
-			// 输入信号
+			//console.log(pulse1, pulse2);
+			// inputs signals
 			this.bus.joypad.dev0 &= 0xFFFFFF00;
 			this.bus.joypad.dev0 |= pulse1 & 0xFF;
 			this.bus.joypad.dev1 &= 0xFFFFFF00;
 			this.bus.joypad.dev1 |= pulse2 & 0xFF;
 		}
 		/**
-		 * 图象输出.
+		 * Render frame.
 		 */
-		public onFrame(): void
+		public renderFrame(): void
 		{
 			++this.frames;
 			if (this.stop)
 			{
 				return;
 			}
-			// output image
-			//this._image.data = this.bus.ppu.output;
-			//image.bitmapData.lock();
-			//image.bitmapData.setVector(image.bitmapData.rect, bus.ppu.output);
-			//image.bitmapData.unlock();
 			// remark:NTSC mode
 			// PPU cycle is 21.48MHz divide by 4
 			// one PPU clock cycle = three CPU clock cycle
@@ -251,8 +242,7 @@
 			// 85.47337944826248199801511793631
 			// 28.37983301993090222590345712729
 
-			// because of DMA,so VM maybe scan multi-line in one times
-			// 因为DMA,所以可能一次扫描多条扫描线
+			// Because of DMA, it is possible to scan multiple scan lines at a time
 			var bankCC: number = 0;
 			for (; ;)
 			{
@@ -283,7 +273,7 @@
 				// 8.All scanlines are complete
 				if (this.nextScanline == 0)
 				{
-					//this.bus.apu.renderSamples(735);
+					this.bus.apu.renderSamples(735);
 					break;
 				}
 			}
@@ -305,6 +295,13 @@
 			}
 		}
 		/**
+		 * Render samples.
+		 */
+		public renderSample(outputBuffer:AudioBuffer):void
+		{
+			this.bus.apu.pushSamplesTo(outputBuffer);
+		}
+		/**
 		 * Reset.
 		 */
 		public reset(): void
@@ -323,7 +320,6 @@
 		 */
 		public onKeyDown(keyCode: number): void
 		{
-			console.log(keyCode);
 			if (keyCode == this.P1_r)
 			{
 				this.B1_r = 128;
@@ -402,6 +398,7 @@
 		 */
 		public onKeyUp(keyCode: number): void
 		{
+			//console.log(keyCode);
 			if (keyCode == this.P1_r)
 			{
 				this.B1_r = 0;

@@ -27,7 +27,6 @@
 
     td {
         border: 1px #000 solid;
-        padding: 5px;
     }
 
     #nav {
@@ -51,11 +50,7 @@
     #main {
         width: 996px;
         margin: 0px auto;
-    }
-
-    #output {
-        width: 512;
-        margin: 0 auto;
+        text-align: center;
     }
 
     #myCanvas {
@@ -64,15 +59,65 @@
         height: 480px;
         image-rendering: pixelated;
     }
+    #myBrief {
+        margin: 0 auto;
+    }
+    #myBrief thead td:first-child, #myBrief thead td:last-child {
+        text-align: center;
+        font-weight: bold;
+        height: 32px;
+    }
+    #myBrief tbody td {
+        width: 32px;
+        padding: 5px 0px;
+        text-align: center;
+    }
+    #myBrief tfoot td {
+        text-align: center;
+        height: 32px;
+        font-weight: bold;
+    }
+    .K1 {
+        color: white;
+        background-color: #369;
+    }
+    .K2 {
+        background-color: #EEE;
+    }
 </style>
 
 <body>
     <div id="main">
         <div id="nav"><a href="https://github.com/amin2312/ANes">[Home]</a><a href="index.html">[ANes]</a></div>
         <div style="line-height: 60px; font-size:2rem; font-weight: bold; text-align: center;">ANes emulator</div>
-        <div id="output">
-            <canvas id="myCanvas" width="256" height="240"></canvas>
-        </div>
+        <canvas id="myCanvas" width="256" height="240"></canvas>
+        <br/><br/>
+        <table id="myBrief">
+            <thead>
+                <tr>
+                    <td colspan="9">1P</td><td></td><td colspan="6">2P</td>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td></td><td class="K1">W</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+                    <td></td>
+                    <td></td><td class="K1">↑</td><td></td><td></td><td></td><td></td>
+                </tr>
+                <tr>
+                    <td class="K1">A</td><td class="K1">S</td><td class="K1">D</td><td></td><td class="K1">F</td><td class="K1">G</td><td></td><td class="K1">V</td><td class="K1">B</td>
+                    <td></td>
+                    <td class="K1">←</td><td class="K1">↓</td><td class="K1">→</td><td></td><td class="K1">{</td><td class="K1">}</td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td class="K2" colspan="3">arrow</td><td></td><td class="K2">sl</td><td class="K2" class="K2">st</td><td></td><td class="K2">b</td><td class="K2">a</td>
+                    <td></td>
+                    <td class="K2" colspan="3">arrow</td><td></td><td class="K2">b</td><td class="K2">a</td>
+                </tr>
+            </tfoot>
+        </table>
     </div>
     <br /><br /><br /><br /><br /><br />
 </body>

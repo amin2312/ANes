@@ -673,7 +673,7 @@ namespace anes
 			{
 				if (this.reg2006 >= 0x3F20)
 				{
-					//console.log('PPU write 0x3F20');
+					console.log('PPU write 0x3F20');
 				}
 				else if (this.reg2006 >= 0x3F00)
 				{
@@ -697,7 +697,7 @@ namespace anes
 				}
 				else if (this.reg2006 >= 0x3000)
 				{
-					//console.log('PPU write 0x3000', this.scanline);
+					console.log('PPU write 0x3000', this.scanline);
 				}
 				else if (this.reg2006 >= 0x2000)
 				{
@@ -810,7 +810,7 @@ namespace anes
 			{
 				this.reg2003 = value;
 			}
-			else if (address == 0x2001) // control register 2		- 控制寄存器2
+			else if (address == 0x2001) // control register 2
 			{
 				this.BWColor = (value & 0x01) > 0;
 				this.BGL1Col = (value & 0x02) > 0;
@@ -818,7 +818,6 @@ namespace anes
 				this.hideBG = !(value & 0x08);
 				this.hideSP = !(value & 0x10);
 				this.lightness = (value & 0xE0) >> 5;
-				//console.log(SPL1Col, BGL1Col);
 			}
 			else if (address == 0x2000)	// control register 1
 			{

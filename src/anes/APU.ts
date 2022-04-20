@@ -6,18 +6,22 @@ namespace anes
 	 */
 	export class APU extends Node
 	{
-		public elapsedTime: number = 0;
-
+		/**
+		 * Defines.
+		 */
+		static readonly MAX_BUF_SAMPLES = 2048 * 128;
+		/**
+		 * Sample.
+		 */
 		public samples = new Array<SAMPLE>();
+		public sampleBuffer = new Float32Array(2048 * 128);
+		public sampleReadPos: number = 0;
+		public sampleWritePos: number = 0;
 
-		//public sound: Sound = new Sound;
-		//public soundBuffer: ByteArray = new ByteArray;
-		//public soundPosition: number = 0;
-
-		public chR: Array<RECTANGLE> = [new RECTANGLE, new RECTANGLE];
-		public chT: TRIANGLE = new TRIANGLE;
-		public chN: NOISE = new NOISE;
-		public chD: DPCM = new DPCM;
+		public chR: Array<RECTANGLE> = [new RECTANGLE(), new RECTANGLE()];
+		public chT: TRIANGLE = new TRIANGLE();
+		public chN: NOISE = new NOISE();
+		public chD: DPCM = new DPCM();
 
 		public vblLength = new Int32Array([5, 127, 10, 1, 19, 2, 40, 3, 80, 4, 30, 5, 7, 6, 13, 7, 6, 8, 12, 9, 24, 10, 48, 11, 96, 12, 36, 13, 8, 14, 16, 15]);
 		public freqLimit = new Int32Array([0x03FF, 0x0555, 0x0666, 0x071C, 0x0787, 0x07C1, 0x07E0, 0x07F0]);
@@ -25,11 +29,12 @@ namespace anes
 		public noiseFreq = new Int32Array([4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068]);
 		public dpcmCycles = new Int32Array([428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106, 85, 72, 54]);
 
-		public reg4015: number;
-		public sync_reg4015: number;
+		public reg4015: number = 0;
+		public sync_reg4015: number = 0;
 
-		public frameCycles: number;
-		public samplingRate: number;
+		public elapsedTime: number = 0;
+		public frameCycles: number = 0;
+		public samplingRate: number = 22050;
 		public cycleRate: number;
 		/**
 		 * Constructor.
@@ -40,14 +45,7 @@ namespace anes
 			this.bus = bus;
 
 			this.bus = bus;
-			this.reg4015 = this.sync_reg4015 = 0;
-			this.frameCycles = 0;
-			this.samplingRate = 22050;
-			this.cycleRate = (CPU.frequency * 65536 / 22050);
-
-			// 监听样本事件
-			//this.sound.addEventListener(SampleDataEvent.SAMPLE_DATA, this.onSampleDataEvent);
-			//this.sound.play();
+			this.cycleRate = (CPU.frequency * 65536 / this.samplingRate);
 		}
 		/**
 		 * Reset.
@@ -101,44 +99,45 @@ namespace anes
 			return null;
 		}
 		/**
-		 * 样本事件.
-		public onSampleDataEvent(e: SampleDataEvent): void
+		 * Push samples to output.
+		 */
+		public pushSamplesTo(output: AudioBuffer): void
 		{
-			var numSamples: number = 2048;
-			var sizeSamples: number = numSamples * 8;
+			var onceSamples: number = 2048;
 
-			var len: number = this.soundBuffer.length;
-			var pos: number = this.soundPosition;
-			var size: number = len - pos;
-
-			if (size < sizeSamples)
+			var bodySize: number = this.sampleWritePos;
+			var availableSize: number = bodySize - this.sampleReadPos;
+			if (availableSize < onceSamples)
 			{
-				for (var i: number = 0; i < numSamples; i++)
+				// fill empty
+				for (var ch = 0; ch < output.numberOfChannels; ch++)
 				{
-					e.data.writeFloat(0);
-					e.data.writeFloat(0);
+					var outputData = output.getChannelData(ch);
+					for (var i: number = 0; i < onceSamples; i++)
+					{
+						outputData[i] = 0;
+					}
+					return;
 				}
-				return;
 			}
-			// 写入样本
-			e.data.writeBytes(this.soundBuffer, pos, sizeSamples);
-			// 移动偏移
-			this.soundPosition += sizeSamples;
-			// 清空BUFFER
-			if (len >= 1048576)
+			// 1.gen samples
+			var outputSamples = new Float32Array(this.sampleBuffer.buffer, this.sampleReadPos * 4, onceSamples);
+			for (var ch = 0; ch < output.numberOfChannels; ch++)
 			{
-				var tmp: ByteArray = new ByteArray;
-				tmp.writeBytes(this.soundBuffer, this.soundPosition, this.soundBuffer.length - this.soundPosition);
-				tmp.position = 0;
-
-				this.soundBuffer.position = 0;
-				this.soundBuffer.length = 0;
-				this.soundPosition = 0;
-
-				this.soundBuffer.writeBytes(tmp);
+				var outputData = output.getChannelData(ch);
+				outputData.set(outputSamples);
+			}
+			// 2.update offset
+			this.sampleReadPos += onceSamples;
+			// 3.clear buffer
+			if (bodySize >= 2048 * 128 / 2)
+			{
+				var sliceLen = bodySize - this.sampleReadPos;
+				this.sampleBuffer.copyWithin(0, this.sampleReadPos, bodySize);
+				this.sampleReadPos = 0;
+				this.sampleWritePos = sliceLen;
 			}
 		}
-		 */
 		/**
 		 * Render samples.
 		 */
@@ -212,8 +211,9 @@ namespace anes
 				// write sample to buffer
 				var multiplier: number = 1 / 32768;
 				var sample: number = output * multiplier * 5;
-				//this.soundBuffer.writeFloat(sample);
-				//this.soundBuffer.writeFloat(sample);
+				this.sampleBuffer[this.sampleWritePos] = sample;
+				this.sampleWritePos++;
+				this.sampleWritePos %= 2048 * 128;
 				// sum time
 				//elapsedTime += 6.764063492063492;
 				this.elapsedTime += 81.168820;
@@ -676,9 +676,9 @@ namespace anes
 					this.frameCycles = 0;
 					if (data & 0x80)
 					{
-						this.UpdateFrame();
+						this.updateFrame();
 					}
-					///FrameCount = 1;
+				///FrameCount = 1;
 				case 0x4018:
 					// syncUpdateRectangle
 					for (var i: number = 0; i < 2; i++)
@@ -735,7 +735,7 @@ namespace anes
 		/**
 		 * Update Frame.
 		 */
-		public UpdateFrame(): void
+		public updateFrame(): void
 		{
 			this.bus.cpu.w(0x4018, 0);
 		}
@@ -1015,9 +1015,9 @@ namespace anes
 	 */
 	class SAMPLE
 	{
-		public time: number;
-		public addr: number;
-		public data: number;
+		public time: number = 0;
+		public addr: number = 0;
+		public data: number = 0;
 	}
 	/**
 	 * Rectangle Wave.
@@ -1026,39 +1026,39 @@ namespace anes
 	{
 		public reg: Float64Array = new Float64Array(4);
 
-		public enable: number;
-		public holdnote: number;
-		public volume: number;
-		public complement: number;
+		public enable: number = 0;
+		public holdnote: number = 0;
+		public volume: number = 0;
+		public complement: number = 0;
 
-		public phaseacc: number;
-		public freq: number;
-		public freqlimit: number;
-		public adder: number;
-		public duty: number;
-		public len_count: number;
+		public phaseacc: number = 0;
+		public freq: number = 0;
+		public freqlimit: number = 0;
+		public adder: number = 0;
+		public duty: number = 0;
+		public len_count: number = 0;
 
-		public nowvolume: number;
+		public nowvolume: number = 0;
 
-		public env_fixed: number;
-		public env_decay: number;
-		public env_count: number;
-		public dummy0: number;
-		public env_vol: number;
+		public env_fixed: number = 0;
+		public env_decay: number = 0;
+		public env_count: number = 0;
+		public dummy0: number = 0;
+		public env_vol: number = 0;
 
-		public swp_on: number;
-		public swp_inc: number;
-		public swp_shift: number;
-		public swp_decay: number;
-		public swp_count: number;
+		public swp_on: number = 0;
+		public swp_inc: number = 0;
+		public swp_shift: number = 0;
+		public swp_decay: number = 0;
+		public swp_count: number = 0;
 		public dummy1: Float64Array = new Float64Array(3);
 
 		public sync_reg: Float64Array = new Float64Array(4);
-		public sync_output_enable: number;
-		public sync_enable: number;
-		public sync_holdnote: number;
-		public dummy2: number;
-		public sync_len_count: number;
+		public sync_output_enable: number = 0;
+		public sync_enable: number = 0;
+		public sync_holdnote: number = 0;
+		public dummy2: number = 0;
+		public sync_len_count: number = 0;
 	}
 	/**
 	 * Triangle Wave.
@@ -1067,26 +1067,26 @@ namespace anes
 	{
 		public reg: Float64Array = new Float64Array(4);
 
-		public enable: number;
-		public holdnote: number;
-		public counter_start: number;
-		public dummy0: number;
+		public enable: number = 0;
+		public holdnote: number = 0;
+		public counter_start: number = 0;
+		public dummy0: number = 0;
 
-		public phaseacc: number;
-		public freq: number;
-		public len_count: number;
-		public lin_count: number;
-		public adder: number;
+		public phaseacc: number = 0;
+		public freq: number = 0;
+		public len_count: number = 0;
+		public lin_count: number = 0;
+		public adder: number = 0;
 
-		public nowvolume: number;
+		public nowvolume: number = 0;
 
 		public sync_reg: Float64Array = new Float64Array(4);
-		public sync_enable: number;
-		public sync_holdnote: number;
-		public sync_counter_start: number;
+		public sync_enable: number = 0;
+		public sync_holdnote: number = 0;
+		public sync_counter_start: number = 0;
 
-		public sync_len_count: number;
-		public sync_lin_count: number;
+		public sync_len_count: number = 0;
+		public sync_lin_count: number = 0;
 	}
 	/**
 	* Noise Wave.
@@ -1095,31 +1095,31 @@ namespace anes
 	{
 		public reg: Float64Array = new Float64Array(4);
 
-		public enable: number;
-		public holdnote: number;
-		public volume: number;
-		public xor_tap: number;
-		public shift_reg: number;
+		public enable: number = 0;
+		public holdnote: number = 0;
+		public volume: number = 0;
+		public xor_tap: number = 0;
+		public shift_reg: number = 0;
 
-		public phaseacc: number;
-		public freq: number;
-		public len_count: number;
+		public phaseacc: number = 0;
+		public freq: number = 0;
+		public len_count: number = 0;
 
-		public nowvolume: number;
-		public output: number;
+		public nowvolume: number = 0;
+		public output: number = 0;
 
-		public env_fixed: number;
-		public env_decay: number;
-		public env_count: number;
-		public dummy0: number;
-		public env_vol: number;
+		public env_fixed: number = 0;
+		public env_decay: number = 0;
+		public env_count: number = 0;
+		public dummy0: number = 0;
+		public env_vol: number = 0;
 
 		public sync_reg: Float64Array = new Float64Array(4);
-		public sync_output_enable: number;
-		public sync_enable: number;
-		public sync_holdnote: number;
-		public dummy1: number;
-		public sync_len_count: number;
+		public sync_output_enable: number = 0;
+		public sync_enable: number = 0;
+		public sync_holdnote: number = 0;
+		public dummy1: number = 0;
+		public sync_len_count: number = 0;
 	}
 	/**
 	 * DPCM.
@@ -1127,32 +1127,32 @@ namespace anes
 	class DPCM
 	{
 		public reg: Float64Array = new Float64Array(4);
-		public enable: number;
-		public looping: number;
-		public cur_byte: number;
-		public dpcm_value: number;
+		public enable: number = 0;
+		public looping: number = 0;
+		public cur_byte: number = 0;
+		public dpcm_value: number = 0;
 
-		public freq: number;
-		public phaseacc: number;
-		public output: number;
+		public freq: number = 0;
+		public phaseacc: number = 0;
+		public output: number = 0;
 
-		public address: number;
-		public cache_addr: number;
-		public dmalength: number
-		public cache_dmalength: number;
-		public dpcm_output_real: number;
-		public dpcm_output_fake: number;
-		public dpcm_output_old: number;
-		public dpcm_output_offset: number;
+		public address: number = 0;
+		public cache_addr: number = 0;
+		public dmalength: number = 0;
+		public cache_dmalength: number = 0;
+		public dpcm_output_real: number = 0;
+		public dpcm_output_fake: number = 0;
+		public dpcm_output_old: number = 0;
+		public dpcm_output_offset: number = 0;
 
 		public sync_reg: Float64Array = new Float64Array(4);
-		public sync_enable: number;
-		public sync_looping: number;
-		public sync_irq_gen: number;
-		public sync_irq_enable: number;
-		public sync_cycles: number;
-		public sync_cache_cycles: number;
-		public sync_dmalength: number;
-		public sync_cache_dmalength: number;
+		public sync_enable: number = 0;
+		public sync_looping: number = 0;
+		public sync_irq_gen: number = 0;
+		public sync_irq_enable: number = 0;
+		public sync_cycles: number = 0;
+		public sync_cache_cycles: number = 0;
+		public sync_dmalength: number = 0;
+		public sync_cache_dmalength: number = 0;
 	}
 }

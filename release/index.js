@@ -59,6 +59,14 @@ var ANesEmu = /** @class */ (function () {
         document.addEventListener('keydown', this.onKeyDown.bind(this));
         document.addEventListener('keyup', this.onKeyUp.bind(this));
         window.requestAnimationFrame(this.onFrame.bind(this));
+        document.onpointerdown = function () {
+            if (this._ctxAudio == null) {
+                this._ctxAudio = new window.AudioContext();
+                var asp = this._ctxAudio.createScriptProcessor(2048, 0, 2);
+                asp.onaudioprocess = this.onSample.bind(this);
+                asp.connect(this._ctxAudio.destination);
+            }
+        }.bind(this);
         /*
         // 3.加载ROM
         romUrl = this.loaderInfo.parameters.romUrl || 'default.txt';
@@ -104,9 +112,9 @@ var ANesEmu = /** @class */ (function () {
         this._rom = bytes;
         // init TV
         var canvas = document.getElementById('myCanvas');
-        this._ctx = canvas.getContext('2d');
+        this._ctxGraph = canvas.getContext('2d');
         this.TV = canvas;
-        this.TVD = this._ctx.createImageData(canvas.width, canvas.height);
+        this.TVD = this._ctxGraph.createImageData(canvas.width, canvas.height);
         // replay game
         this.replay();
     };
@@ -134,15 +142,23 @@ var ANesEmu = /** @class */ (function () {
             this._stats.begin();
         }
         if (this.TV != null && this.TVD != null) {
-            this._ctx.putImageData(this.TVD, 0, 0);
+            this._ctxGraph.putImageData(this.TVD, 0, 0);
         }
         if (this.vm != null) {
-            this.vm.onFrame();
+            this.vm.renderFrame();
         }
         if (this._stats != null) {
             this._stats.end();
         }
         window.requestAnimationFrame(this.onFrame.bind(this));
+    };
+    /**
+     * @private
+     */
+    ANesEmu.prototype.onSample = function (e) {
+        if (this.vm != null) {
+            this.vm.renderSample(e.outputBuffer);
+        }
     };
     /**
      * Show performance.
@@ -200,30 +216,31 @@ var anes;
          */
         function APU(bus) {
             var _this = _super.call(this) || this;
-            _this.elapsedTime = 0;
+            /**
+             * Sample.
+             */
             _this.samples = new Array();
-            //public sound: Sound = new Sound;
-            //public soundBuffer: ByteArray = new ByteArray;
-            //public soundPosition: number = 0;
-            _this.chR = [new RECTANGLE, new RECTANGLE];
-            _this.chT = new TRIANGLE;
-            _this.chN = new NOISE;
-            _this.chD = new DPCM;
+            _this.sampleBuffer = new Float32Array(2048 * 128);
+            _this.sampleReadPos = 0;
+            _this.sampleWritePos = 0;
+            _this.chR = [new RECTANGLE(), new RECTANGLE()];
+            _this.chT = new TRIANGLE();
+            _this.chN = new NOISE();
+            _this.chD = new DPCM();
             _this.vblLength = new Int32Array([5, 127, 10, 1, 19, 2, 40, 3, 80, 4, 30, 5, 7, 6, 13, 7, 6, 8, 12, 9, 24, 10, 48, 11, 96, 12, 36, 13, 8, 14, 16, 15]);
             _this.freqLimit = new Int32Array([0x03FF, 0x0555, 0x0666, 0x071C, 0x0787, 0x07C1, 0x07E0, 0x07F0]);
             _this.dutyLut = new Int32Array([2, 4, 8, 12]);
             _this.noiseFreq = new Int32Array([4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068]);
             _this.dpcmCycles = new Int32Array([428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106, 85, 72, 54]);
-            _this.bus = bus;
-            _this.bus = bus;
-            _this.reg4015 = _this.sync_reg4015 = 0;
+            _this.reg4015 = 0;
+            _this.sync_reg4015 = 0;
+            _this.elapsedTime = 0;
             _this.frameCycles = 0;
             _this.samplingRate = 22050;
-            _this.cycleRate = (anes.CPU.frequency * 65536 / 22050);
+            _this.bus = bus;
+            _this.bus = bus;
+            _this.cycleRate = (anes.CPU.frequency * 65536 / _this.samplingRate);
             return _this;
-            // 监听样本事件
-            //this.sound.addEventListener(SampleDataEvent.SAMPLE_DATA, this.onSampleDataEvent);
-            //this.sound.play();
         }
         /**
          * Reset.
@@ -269,44 +286,38 @@ var anes;
             return null;
         };
         /**
-         * 样本事件.
-        public onSampleDataEvent(e: SampleDataEvent): void
-        {
-            var numSamples: number = 2048;
-            var sizeSamples: number = numSamples * 8;
-
-            var len: number = this.soundBuffer.length;
-            var pos: number = this.soundPosition;
-            var size: number = len - pos;
-
-            if (size < sizeSamples)
-            {
-                for (var i: number = 0; i < numSamples; i++)
-                {
-                    e.data.writeFloat(0);
-                    e.data.writeFloat(0);
-                }
-                return;
-            }
-            // 写入样本
-            e.data.writeBytes(this.soundBuffer, pos, sizeSamples);
-            // 移动偏移
-            this.soundPosition += sizeSamples;
-            // 清空BUFFER
-            if (len >= 1048576)
-            {
-                var tmp: ByteArray = new ByteArray;
-                tmp.writeBytes(this.soundBuffer, this.soundPosition, this.soundBuffer.length - this.soundPosition);
-                tmp.position = 0;
-
-                this.soundBuffer.position = 0;
-                this.soundBuffer.length = 0;
-                this.soundPosition = 0;
-
-                this.soundBuffer.writeBytes(tmp);
-            }
-        }
+         * Push samples to output.
          */
+        APU.prototype.pushSamplesTo = function (output) {
+            var onceSamples = 2048;
+            var bodySize = this.sampleWritePos;
+            var availableSize = bodySize - this.sampleReadPos;
+            if (availableSize < onceSamples) {
+                // fill empty
+                for (var ch = 0; ch < output.numberOfChannels; ch++) {
+                    var outputData = output.getChannelData(ch);
+                    for (var i = 0; i < onceSamples; i++) {
+                        outputData[i] = 0;
+                    }
+                    return;
+                }
+            }
+            // 1.gen samples
+            var outputSamples = new Float32Array(this.sampleBuffer.buffer, this.sampleReadPos * 4, onceSamples);
+            for (var ch = 0; ch < output.numberOfChannels; ch++) {
+                var outputData = output.getChannelData(ch);
+                outputData.set(outputSamples);
+            }
+            // 2.update offset
+            this.sampleReadPos += onceSamples;
+            // 3.clear buffer
+            if (bodySize >= 2048 * 128 / 2) {
+                var sliceLen = bodySize - this.sampleReadPos;
+                this.sampleBuffer.copyWithin(0, this.sampleReadPos, bodySize);
+                this.sampleReadPos = 0;
+                this.sampleWritePos = sliceLen;
+            }
+        };
         /**
          * Render samples.
          */
@@ -367,8 +378,9 @@ var anes;
                 // write sample to buffer
                 var multiplier = 1 / 32768;
                 var sample = output * multiplier * 5;
-                //this.soundBuffer.writeFloat(sample);
-                //this.soundBuffer.writeFloat(sample);
+                this.sampleBuffer[this.sampleWritePos] = sample;
+                this.sampleWritePos++;
+                this.sampleWritePos %= 2048 * 128;
                 // sum time
                 //elapsedTime += 6.764063492063492;
                 this.elapsedTime += 81.168820;
@@ -765,7 +777,7 @@ var anes;
                 case 0x4017:
                     this.frameCycles = 0;
                     if (data & 0x80) {
-                        this.UpdateFrame();
+                        this.updateFrame();
                     }
                 ///FrameCount = 1;
                 case 0x4018:
@@ -811,7 +823,7 @@ var anes;
         /**
          * Update Frame.
          */
-        APU.prototype.UpdateFrame = function () {
+        APU.prototype.updateFrame = function () {
             this.bus.cpu.w(0x4018, 0);
         };
         /**
@@ -1025,6 +1037,10 @@ var anes;
             this.chN.shift_reg |= (bit14 << 14);
             return (bit0 ^ 1);
         };
+        /**
+         * Defines.
+         */
+        APU.MAX_BUF_SAMPLES = 2048 * 128;
         return APU;
     }(anes.Node));
     anes.APU = APU;
@@ -1033,6 +1049,9 @@ var anes;
      */
     var SAMPLE = /** @class */ (function () {
         function SAMPLE() {
+            this.time = 0;
+            this.addr = 0;
+            this.data = 0;
         }
         return SAMPLE;
     }());
@@ -1042,8 +1061,34 @@ var anes;
     var RECTANGLE = /** @class */ (function () {
         function RECTANGLE() {
             this.reg = new Float64Array(4);
+            this.enable = 0;
+            this.holdnote = 0;
+            this.volume = 0;
+            this.complement = 0;
+            this.phaseacc = 0;
+            this.freq = 0;
+            this.freqlimit = 0;
+            this.adder = 0;
+            this.duty = 0;
+            this.len_count = 0;
+            this.nowvolume = 0;
+            this.env_fixed = 0;
+            this.env_decay = 0;
+            this.env_count = 0;
+            this.dummy0 = 0;
+            this.env_vol = 0;
+            this.swp_on = 0;
+            this.swp_inc = 0;
+            this.swp_shift = 0;
+            this.swp_decay = 0;
+            this.swp_count = 0;
             this.dummy1 = new Float64Array(3);
             this.sync_reg = new Float64Array(4);
+            this.sync_output_enable = 0;
+            this.sync_enable = 0;
+            this.sync_holdnote = 0;
+            this.dummy2 = 0;
+            this.sync_len_count = 0;
         }
         return RECTANGLE;
     }());
@@ -1053,7 +1098,22 @@ var anes;
     var TRIANGLE = /** @class */ (function () {
         function TRIANGLE() {
             this.reg = new Float64Array(4);
+            this.enable = 0;
+            this.holdnote = 0;
+            this.counter_start = 0;
+            this.dummy0 = 0;
+            this.phaseacc = 0;
+            this.freq = 0;
+            this.len_count = 0;
+            this.lin_count = 0;
+            this.adder = 0;
+            this.nowvolume = 0;
             this.sync_reg = new Float64Array(4);
+            this.sync_enable = 0;
+            this.sync_holdnote = 0;
+            this.sync_counter_start = 0;
+            this.sync_len_count = 0;
+            this.sync_lin_count = 0;
         }
         return TRIANGLE;
     }());
@@ -1063,7 +1123,27 @@ var anes;
     var NOISE = /** @class */ (function () {
         function NOISE() {
             this.reg = new Float64Array(4);
+            this.enable = 0;
+            this.holdnote = 0;
+            this.volume = 0;
+            this.xor_tap = 0;
+            this.shift_reg = 0;
+            this.phaseacc = 0;
+            this.freq = 0;
+            this.len_count = 0;
+            this.nowvolume = 0;
+            this.output = 0;
+            this.env_fixed = 0;
+            this.env_decay = 0;
+            this.env_count = 0;
+            this.dummy0 = 0;
+            this.env_vol = 0;
             this.sync_reg = new Float64Array(4);
+            this.sync_output_enable = 0;
+            this.sync_enable = 0;
+            this.sync_holdnote = 0;
+            this.dummy1 = 0;
+            this.sync_len_count = 0;
         }
         return NOISE;
     }());
@@ -1073,7 +1153,30 @@ var anes;
     var DPCM = /** @class */ (function () {
         function DPCM() {
             this.reg = new Float64Array(4);
+            this.enable = 0;
+            this.looping = 0;
+            this.cur_byte = 0;
+            this.dpcm_value = 0;
+            this.freq = 0;
+            this.phaseacc = 0;
+            this.output = 0;
+            this.address = 0;
+            this.cache_addr = 0;
+            this.dmalength = 0;
+            this.cache_dmalength = 0;
+            this.dpcm_output_real = 0;
+            this.dpcm_output_fake = 0;
+            this.dpcm_output_old = 0;
+            this.dpcm_output_offset = 0;
             this.sync_reg = new Float64Array(4);
+            this.sync_enable = 0;
+            this.sync_looping = 0;
+            this.sync_irq_gen = 0;
+            this.sync_irq_enable = 0;
+            this.sync_cycles = 0;
+            this.sync_cache_cycles = 0;
+            this.sync_dmalength = 0;
+            this.sync_cache_dmalength = 0;
         }
         return DPCM;
     }());
@@ -1276,7 +1379,7 @@ var anes;
                         this.bus.joypad.w(value);
                     }
                     else {
-                        //console.log('uncope write register',addr.toString(16));
+                        console.log('uncope write register', addr.toString(16));
                     }
                 }
                 else {
@@ -5091,7 +5194,7 @@ var anes;
             if (address == 0x2007) // VRAM data
              {
                 if (this.reg2006 >= 0x3F20) {
-                    //console.log('PPU write 0x3F20');
+                    console.log('PPU write 0x3F20');
                 }
                 else if (this.reg2006 >= 0x3F00) {
                     if (this.reg2006 % 0x10 == 0) // 0x3F00 or 0x3F10
@@ -5112,7 +5215,7 @@ var anes;
                     }
                 }
                 else if (this.reg2006 >= 0x3000) {
-                    //console.log('PPU write 0x3000', this.scanline);
+                    console.log('PPU write 0x3000', this.scanline);
                 }
                 else if (this.reg2006 >= 0x2000) {
                     if (this.bus.mirrorS) {
@@ -5209,7 +5312,7 @@ var anes;
              {
                 this.reg2003 = value;
             }
-            else if (address == 0x2001) // control register 2		- 控制寄存器2
+            else if (address == 0x2001) // control register 2
              {
                 this.BWColor = (value & 0x01) > 0;
                 this.BGL1Col = (value & 0x02) > 0;
@@ -5217,7 +5320,6 @@ var anes;
                 this.hideBG = !(value & 0x08);
                 this.hideSP = !(value & 0x10);
                 this.lightness = (value & 0xE0) >> 5;
-                //console.log(SPL1Col, BGL1Col);
             }
             else if (address == 0x2000) // control register 1
              {
@@ -5263,7 +5365,6 @@ var anes;
             this.palettes = [];
             // #0 palette is default palette(defined in NesDoc)
             /* ARGB */ this.palettes.push(new Uint32Array([0xFF757575, 0xFF271B8F, 0xFF0000AB, 0xFF47009F, 0xFF8F0077, 0xFFAB0013, 0xFFA70000, 0xFF7F0B00, 0xFF432F00, 0xFF004700, 0xFF005100, 0xFF003F17, 0xFF1B3F5F, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFBCBCBC, 0xFF0073EF, 0xFF233BEF, 0xFF8300F3, 0xFFBF00BF, 0xFFE7005B, 0xFFDB2B00, 0xFFCB4F0F, 0xFF8B7300, 0xFF009700, 0xFF00AB00, 0xFF00933B, 0xFF00838B, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF3FBFFF, 0xFF5F97FF, 0xFFA78BFD, 0xFFF77BFF, 0xFFFF77B7, 0xFFFF7763, 0xFFFF9B3B, 0xFFF3BF3F, 0xFF83D313, 0xFF4FDF4B, 0xFF58F898, 0xFF00EBDB, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFFABE7FF, 0xFFC7D7FF, 0xFFD7CBFF, 0xFFFFC7FF, 0xFFFFC7DB, 0xFFFFBFB3, 0xFFFFDBAB, 0xFFFFE7A3, 0xFFE3FFA3, 0xFFABF3BF, 0xFFB3FFCF, 0xFF9FFFF3, 0xFF000000, 0xFF000000, 0xFF000000]));
-            /* ARGB */ //this.palettes.push(new Uint32Array([0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF]));
             // #1 palette is used in many other emulators
             /* ARGB */ this.palettes.push(new Uint32Array([0xFF7F7F7F, 0xFF2000B0, 0xFF2800B8, 0xFF6010A0, 0xFF982078, 0xFFB01030, 0xFFA03000, 0xFF784000, 0xFF485800, 0xFF386800, 0xFF386C00, 0xFF306040, 0xFF305080, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFBCBCBC, 0xFF4060F8, 0xFF4040FF, 0xFF9040F0, 0xFFD840C0, 0xFFD84060, 0xFFE05000, 0xFFC07000, 0xFF888800, 0xFF50A000, 0xFF48A810, 0xFF48A068, 0xFF4090C0, 0xFF000000, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF60A0FF, 0xFF5080FF, 0xFFA070FF, 0xFFF060FF, 0xFFFF60B0, 0xFFFF7830, 0xFFFFA000, 0xFFE8D020, 0xFF98E800, 0xFF70F040, 0xFF70E090, 0xFF60D0E0, 0xFF606060, 0xFF000000, 0xFF000000, 0xFFFFFFFF, 0xFF90D0FF, 0xFFA0B8FF, 0xFFC0B0FF, 0xFFE0B0FF, 0xFFFFB8E8, 0xFFFFC8B8, 0xFFFFD8A0, 0xFFFFF090, 0xFFC8F080, 0xFFA0F0A0, 0xFFA0FFC8, 0xFFA0FFF0, 0xFFA0A0A0, 0xFF000000, 0xFF000000]));
             // reset
@@ -5349,19 +5450,19 @@ var anes;
             if (P1_u === void 0) { P1_u = 87; }
             if (P1_d === void 0) { P1_d = 83; }
             if (P1_se === void 0) { P1_se = 70; }
-            if (P1_st === void 0) { P1_st = 72; }
-            if (P1_b === void 0) { P1_b = 74; }
-            if (P1_a === void 0) { P1_a = 75; }
-            if (P1_b2 === void 0) { P1_b2 = 85; }
-            if (P1_a2 === void 0) { P1_a2 = 73; }
+            if (P1_st === void 0) { P1_st = 71; }
+            if (P1_b === void 0) { P1_b = 86; }
+            if (P1_a === void 0) { P1_a = 66; }
+            if (P1_b2 === void 0) { P1_b2 = 67; }
+            if (P1_a2 === void 0) { P1_a2 = 78; }
             if (P2_r === void 0) { P2_r = 39; }
             if (P2_l === void 0) { P2_l = 37; }
             if (P2_u === void 0) { P2_u = 38; }
             if (P2_d === void 0) { P2_d = 40; }
-            if (P2_b === void 0) { P2_b = 97; }
-            if (P2_a === void 0) { P2_a = 98; }
-            if (P2_b2 === void 0) { P2_b2 = 100; }
-            if (P2_a2 === void 0) { P2_a2 = 101; }
+            if (P2_b === void 0) { P2_b = 219; }
+            if (P2_a === void 0) { P2_a = 221; }
+            if (P2_b2 === void 0) { P2_b2 = 189; }
+            if (P2_a2 === void 0) { P2_a2 = 187; }
             this.P1_r = P1_r;
             this.P1_l = P1_l;
             this.P1_u = P1_u;
@@ -5382,44 +5483,36 @@ var anes;
             this.P2_a2 = P2_a2;
         };
         /**
-         * 按键输入.
+         * Update key states.
          */
         VM.prototype.updateKeys = function () {
             if (this.stop == true) {
                 return;
             }
-            // 初始化按键信号
+            // initialize key signal
             var pulse1;
             var pulse2;
             var B1_bb = this.B1_b2 ? (this.B1_bt ^= 2) : this.B1_b;
             var B1_aa = this.B1_a2 ? (this.B1_at ^= 1) : this.B1_a;
             var B2_bb = this.B2_b2 ? (this.B2_bt ^= 2) : this.B2_b;
             var B2_aa = this.B2_a2 ? (this.B2_at ^= 1) : this.B2_a;
-            pulse1 = B1_aa | B1_bb | this.B1_se | this.B1_st | this.B1_u | this.B1_d | this.B1_l | this.B1_r;
+            pulse1 = B1_aa | B1_bb | this.B1_u | this.B1_d | this.B1_l | this.B1_r | this.B1_se | this.B1_st;
             pulse2 = B2_aa | B2_bb | this.B2_u | this.B2_d | this.B2_l | this.B2_r;
-            //if (pulse1 != 0)
-            //{
-            //	console.log(pulse1);
-            //}
-            // 输入信号
+            //console.log(pulse1, pulse2);
+            // inputs signals
             this.bus.joypad.dev0 &= 0xFFFFFF00;
             this.bus.joypad.dev0 |= pulse1 & 0xFF;
             this.bus.joypad.dev1 &= 0xFFFFFF00;
             this.bus.joypad.dev1 |= pulse2 & 0xFF;
         };
         /**
-         * 图象输出.
+         * Render frame.
          */
-        VM.prototype.onFrame = function () {
+        VM.prototype.renderFrame = function () {
             ++this.frames;
             if (this.stop) {
                 return;
             }
-            // output image
-            //this._image.data = this.bus.ppu.output;
-            //image.bitmapData.lock();
-            //image.bitmapData.setVector(image.bitmapData.rect, bus.ppu.output);
-            //image.bitmapData.unlock();
             // remark:NTSC mode
             // PPU cycle is 21.48MHz divide by 4
             // one PPU clock cycle = three CPU clock cycle
@@ -5431,8 +5524,7 @@ var anes;
             // 113.85321246819338422391857506361
             // 85.47337944826248199801511793631
             // 28.37983301993090222590345712729
-            // because of DMA,so VM maybe scan multi-line in one times
-            // 因为DMA,所以可能一次扫描多条扫描线
+            // Because of DMA, it is possible to scan multiple scan lines at a time
             var bankCC = 0;
             for (;;) {
                 // 1.CPU CC corresponding to HDraw
@@ -5457,7 +5549,7 @@ var anes;
                 this.bus.cpu.onceExecedCC -= bankCC;
                 // 8.All scanlines are complete
                 if (this.nextScanline == 0) {
-                    //this.bus.apu.renderSamples(735);
+                    this.bus.apu.renderSamples(735);
                     break;
                 }
             }
@@ -5477,6 +5569,12 @@ var anes;
             }
         };
         /**
+         * Render samples.
+         */
+        VM.prototype.renderSample = function (outputBuffer) {
+            this.bus.apu.pushSamplesTo(outputBuffer);
+        };
+        /**
          * Reset.
          */
         VM.prototype.reset = function () {
@@ -5492,7 +5590,6 @@ var anes;
          * @private
          */
         VM.prototype.onKeyDown = function (keyCode) {
-            console.log(keyCode);
             if (keyCode == this.P1_r) {
                 this.B1_r = 128;
             }
@@ -5552,6 +5649,7 @@ var anes;
          * @private
          */
         VM.prototype.onKeyUp = function (keyCode) {
+            //console.log(keyCode);
             if (keyCode == this.P1_r) {
                 this.B1_r = 0;
             }

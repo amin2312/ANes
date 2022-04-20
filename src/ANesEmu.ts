@@ -8,9 +8,13 @@ class ANesEmu
 	 */
 	private _rom: ArrayBuffer;
 	/**
-	 * Context.
+	 * Graph Context.
 	 */
-	private _ctx:CanvasRenderingContext2D;
+	private _ctxGraph: CanvasRenderingContext2D;
+	/**
+	 * Audio Context.
+	 */
+	private _ctxAudio: AudioContext;
 	/**
 	 * Stats.
 	 */
@@ -54,6 +58,16 @@ class ANesEmu
 		document.addEventListener('keydown', this.onKeyDown.bind(this));
 		document.addEventListener('keyup', this.onKeyUp.bind(this));
 		window.requestAnimationFrame(this.onFrame.bind(this));
+		document.onpointerdown = function (this: ANesEmu): void
+		{
+			if (this._ctxAudio == null)
+			{
+				this._ctxAudio = new window.AudioContext();
+				var asp = this._ctxAudio.createScriptProcessor(2048, 0, 2);
+				asp.onaudioprocess = this.onSample.bind(this);
+				asp.connect(this._ctxAudio.destination);
+			}
+		}.bind(this);
 		/*
 		// 3.加载ROM
 		romUrl = this.loaderInfo.parameters.romUrl || 'default.txt';
@@ -104,9 +118,9 @@ class ANesEmu
 		this._rom = bytes;
 		// init TV
 		var canvas = document.getElementById('myCanvas') as HTMLCanvasElement;
-		this._ctx = canvas.getContext('2d');
+		this._ctxGraph = canvas.getContext('2d');
 		this.TV = canvas;
-		this.TVD = this._ctx.createImageData(canvas.width, canvas.height);
+		this.TVD = this._ctxGraph.createImageData(canvas.width, canvas.height);
 		// replay game
 		this.replay();
 	}
@@ -139,17 +153,27 @@ class ANesEmu
 		}
 		if (this.TV != null && this.TVD != null)
 		{
-			this._ctx.putImageData(this.TVD, 0, 0);
+			this._ctxGraph.putImageData(this.TVD, 0, 0);
 		}
 		if (this.vm != null)
 		{
-			this.vm.onFrame();
+			this.vm.renderFrame();
 		}
 		if (this._stats != null)
 		{
 			this._stats.end();
 		}
 		window.requestAnimationFrame(this.onFrame.bind(this));
+	}
+	/**
+	 * @private
+	 */
+	private onSample(e: AudioProcessingEvent): void
+	{
+		if (this.vm != null)
+		{
+			this.vm.renderSample(e.outputBuffer);
+		}
 	}
 	/**
 	 * Show performance.
@@ -169,7 +193,7 @@ class ANesEmu
 	 */
 	private onKeyDown(e: KeyboardEvent): void
 	{
-		if(this.vm != null)
+		if (this.vm != null)
 		{
 			this.vm.onKeyDown(e.keyCode);
 		}
@@ -179,7 +203,7 @@ class ANesEmu
 	 */
 	private onKeyUp(e: KeyboardEvent): void
 	{
-		if(this.vm != null)
+		if (this.vm != null)
 		{
 			this.vm.onKeyUp(e.keyCode);
 		}

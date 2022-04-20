@@ -216,7 +216,7 @@ namespace anes
 					}
 					else
 					{
-						//console.log('uncope write register',addr.toString(16));
+						console.log('uncope write register',addr.toString(16));
 					}
 				}
 				else
