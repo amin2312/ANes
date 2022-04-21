@@ -1,42 +1,40 @@
 /**
- * NES模拟器.
+ * 1. Copyright (c) 2022 amin2312
+ * 2. Version 1.0.0
+ * 3. MIT License
+ *
+ * ANes is nes emulator base on javascript. It is port version of AminNes(©2009).
  */
 class ANesEmu
 {
-	/**
-	 * ROM.
-	 */
-	private _rom: ArrayBuffer;
-	/**
-	 * Graph Context.
-	 */
-	private _ctxGraph: CanvasRenderingContext2D;
-	/**
-	 * Audio Context.
-	 */
-	private _ctxAudio: AudioContext;
 	/**
 	 * Stats.
 	 */
 	private _stats: Stats = null;
 	/**
-	 * TV.
+	 * ROM.
 	 */
-	public TV: HTMLCanvasElement = null;
-	/**
-	 * the image data bind of TV
-	 */
-	public TVD: ImageData = null;
+	private _rom: ArrayBuffer;
 	/**
 	 * Virtual Machine
 	 */
 	public vm: anes.VM = null;
-
 	/**
-	 * [二进制文件] 图像.
+	 * TV.
 	 */
-	//[Embed(source = "../ui.swf", mimeType = "application/octet-stream")]
-	//public static UiBin: Class;
+	 private _tv: HTMLCanvasElement = null;
+	 /**
+	  * TV Image Context.
+	  */
+	 private _txImage: CanvasRenderingContext2D;
+	/**
+	 * TV Image Frame Data.
+	 */
+	 private _tvImageFrameData: ImageData = null;
+	 /**
+	  * TV Audio Context.
+	  */
+	 private _tvAudio: AudioContext;
 	/**
 	 * 外观.
 	 */
@@ -60,12 +58,12 @@ class ANesEmu
 		window.requestAnimationFrame(this.onFrame.bind(this));
 		document.onpointerdown = function (this: ANesEmu): void
 		{
-			if (this._ctxAudio == null)
+			if (this._tvAudio == null)
 			{
-				this._ctxAudio = new window.AudioContext();
-				var asp = this._ctxAudio.createScriptProcessor(2048, 0, 2);
+				this._tvAudio = new window.AudioContext();
+				var asp = this._tvAudio.createScriptProcessor(2048, 0, 2);
 				asp.onaudioprocess = this.onSample.bind(this);
-				asp.connect(this._ctxAudio.destination);
+				asp.connect(this._tvAudio.destination);
 			}
 		}.bind(this);
 		/*
@@ -118,9 +116,9 @@ class ANesEmu
 		this._rom = bytes;
 		// init TV
 		var canvas = document.getElementById('myCanvas') as HTMLCanvasElement;
-		this._ctxGraph = canvas.getContext('2d');
-		this.TV = canvas;
-		this.TVD = this._ctxGraph.createImageData(canvas.width, canvas.height);
+		this._txImage = canvas.getContext('2d');
+		this._tv = canvas;
+		this._tvImageFrameData = this._txImage.createImageData(canvas.width, canvas.height);
 		// replay game
 		this.replay();
 	}
@@ -136,7 +134,7 @@ class ANesEmu
 		// 1.create VM
 		this.vm = new anes.VM();
 		// 2.connect TV
-		this.vm.connect(this.TVD);
+		this.vm.connect(this._tvImageFrameData);
 		// 3.insert cartridge
 		this.vm.insertCartridge(this._rom);
 		// 连接手柄
@@ -151,9 +149,9 @@ class ANesEmu
 		{
 			this._stats.begin();
 		}
-		if (this.TV != null && this.TVD != null)
+		if (this._tv != null && this._tvImageFrameData != null)
 		{
-			this._ctxGraph.putImageData(this.TVD, 0, 0);
+			this._txImage.putImageData(this._tvImageFrameData, 0, 0);
 		}
 		if (this.vm != null)
 		{

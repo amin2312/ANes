@@ -606,7 +606,7 @@ namespace anes
 						}
 						this.point = (this.bitY * 256) + this.bitX;					// current render point
 						this.bgPoint = this.background[this.point];					// 对应的背景点
-						// if it is in foreground and isnt transparent(如果在前景或背景为透明的话)
+						// if it is in foreground and isnt transparent (如果在前景或背景为透明的话)
 						if (this.foreground || this.bgPoint == 0)
 						{
 							this.pal_index = this.u_bit_pal << 2 | this.l_bit_pal;		// make color index

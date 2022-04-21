@@ -82,7 +82,7 @@ namespace anes
 			{
 				return;
 			}
-			// register 0(configuration)
+			// register 0 (configuration)
 			if (addr < 0xA000)
 			{
 				this.bus.mirrorV = !(this.temp & 0x1);
@@ -90,7 +90,7 @@ namespace anes
 				this.romMode = (this.temp & 0xC) >> 2;
 				this.b8kVRom = !(this.temp & 0x10);
 			}
-			// register 1(swtich lower VROM of 4K or 8K)
+			// register 1 (swtich lower VROM of 4K or 8K)
 			else if (addr < 0xC000)
 			{
 				this.temp &= 0x1F;
@@ -114,7 +114,7 @@ namespace anes
 					this.bus.ppu.VRAM[i] = this.bus.rom[offset + i];
 				}
 			}
-			// register 2(swtich upper VROM of 4K)
+			// register 2 (swtich upper VROM of 4K)
 			else if (addr < 0xE000)
 			{
 				this.temp &= 0x1F;
@@ -133,7 +133,7 @@ namespace anes
 					this.bus.ppu.VRAM[0x1000 + i] = this.bus.rom[offset + i];
 				}
 			}
-			// register 3(swtich PRG-ROM bank)
+			// register 3 (swtich PRG-ROM bank)
 			else
 			{
 				if (this.reg3 == this.temp)

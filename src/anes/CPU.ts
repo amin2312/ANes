@@ -2,7 +2,7 @@
 namespace anes
 {
 	/**
-	 * CPU(6502).
+	 * 6502 CPU.
 	 */
 	export class CPU extends Node
 	{
@@ -216,7 +216,7 @@ namespace anes
 					}
 					else
 					{
-						console.log('uncope write register',addr.toString(16));
+						console.log('uncope write register', addr.toString(16));
 					}
 				}
 				else
@@ -235,7 +235,7 @@ namespace anes
 				this.bus.mapperW(addr, value);
 			}
 		}
-		private _ii = 0;
+		//private _ii = 0;
 		/**
 		 * execution instruction(execute instruction
 		 */

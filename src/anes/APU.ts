@@ -17,7 +17,9 @@ namespace anes
 		public sampleBuffer = new Float32Array(2048 * 128);
 		public sampleReadPos: number = 0;
 		public sampleWritePos: number = 0;
-
+		/**
+		 * Channels.
+		 */
 		public chR: Array<RECTANGLE> = [new RECTANGLE(), new RECTANGLE()];
 		public chT: TRIANGLE = new TRIANGLE();
 		public chN: NOISE = new NOISE();
@@ -30,7 +32,7 @@ namespace anes
 		public dpcmCycles = new Int32Array([428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106, 85, 72, 54]);
 
 		public reg4015: number = 0;
-		public sync_reg4015: number = 0;
+		public reg4015_sync: number = 0;
 
 		public elapsedTime: number = 0;
 		public frameCycles: number = 0;
@@ -44,7 +46,6 @@ namespace anes
 			super();
 			this.bus = bus;
 
-			this.bus = bus;
 			this.cycleRate = (CPU.frequency * 65536 / this.samplingRate);
 		}
 		/**
@@ -84,14 +85,14 @@ namespace anes
 		/**
 		 * Shift sample.
 		 */
-		public shiftSample(writetime: number): SAMPLE
+		public shiftSample(writeTime: number): SAMPLE
 		{
 			if (this.samples.length == 0)
 			{
 				return null;
 			}
 			var q: SAMPLE = this.samples[0];
-			if (q.time <= writetime)
+			if (q.time <= writeTime)
 			{
 				this.samples.shift();
 				return q;
@@ -157,7 +158,7 @@ namespace anes
 			vol[3] = 0x0C0;
 			vol[4] = 0x0F0;
 
-			// flush all samples
+			// flush accumulated samples
 			if (this.elapsedTime > this.bus.cpu.execedCC)
 			{
 				while (this.samples.length)
@@ -215,7 +216,6 @@ namespace anes
 				this.sampleWritePos++;
 				this.sampleWritePos %= 2048 * 128;
 				// sum time
-				//elapsedTime += 6.764063492063492;
 				this.elapsedTime += 81.168820;
 			}
 			// sync time
@@ -240,7 +240,7 @@ namespace anes
 					case 0x4005:
 					case 0x4006:
 					case 0x4007:
-						// WriteRectangle
+						// write rectangle
 						no = (addr < 0x4004) ? 0 : 1;
 						ch = this.chR[no];
 						ch.reg[addr & 3] = data;
@@ -280,7 +280,7 @@ namespace anes
 					case 0x4009:
 					case 0x400A:
 					case 0x400B:
-						// WriteTriangle
+						// write triangle
 						this.chT.reg[addr & 3] = data;
 						switch (addr & 3)
 						{
@@ -307,7 +307,7 @@ namespace anes
 					case 0x400D:
 					case 0x400E:
 					case 0x400F:
-						// WriteNoise
+						// write noise
 						this.chN.reg[addr & 3] = data;
 						switch (addr & 3)
 						{
@@ -338,7 +338,7 @@ namespace anes
 					case 0x4011:
 					case 0x4012:
 					case 0x4013:
-						// WriteDPCM
+						// write DPCM
 						this.chD.reg[addr & 3] = data;
 						switch (addr & 3)
 						{
@@ -398,7 +398,7 @@ namespace anes
 						}
 						break;
 					case 0x4018:
-						// updateRectangle
+						// update rectangle
 						for (var i: number = 0; i < 2; i++)
 						{
 							ch = this.chR[i];
@@ -462,7 +462,7 @@ namespace anes
 								}
 							}
 						}
-						// updateTriangle
+						// update triangle
 						if (this.chT.enable)
 						{
 							if (!(data & 1) && !this.chT.holdnote)
@@ -485,7 +485,7 @@ namespace anes
 								this.chT.counter_start = 0;
 							}
 						}
-						// updateNoise
+						// update noise
 						if (this.chN.enable && this.chN.len_count > 0)
 						{
 							if (!this.chN.holdnote)
@@ -537,6 +537,7 @@ namespace anes
 				case 0x4005:
 				case 0x4006:
 				case 0x4007:
+					// write rectangle
 					no = (addr < 0x4004) ? 0 : 1;
 					ch = this.chR[no];
 					ch.sync_reg[addr & 3] = data;
@@ -550,7 +551,7 @@ namespace anes
 							break;
 						case 3:
 							ch.sync_len_count = this.vblLength[data >> 3] * 2;
-							if (this.sync_reg4015 & (1 << no))
+							if (this.reg4015_sync & (1 << no))
 							{
 								ch.sync_enable = 0xFF;
 							}
@@ -561,7 +562,7 @@ namespace anes
 				case 0x4009:
 				case 0x400A:
 				case 0x400B:
-					// syncWriteTriangle
+					// write triangle
 					this.chT.sync_reg[addr & 3] = data;
 					switch (addr & 3)
 					{
@@ -575,7 +576,7 @@ namespace anes
 						case 3:
 							this.chT.sync_len_count = this.vblLength[this.chT.sync_reg[3] >> 3] * 2;
 							this.chT.sync_counter_start = 0x80;
-							if (this.sync_reg4015 & (1 << 2))
+							if (this.reg4015_sync & (1 << 2))
 							{
 								this.chT.sync_enable = 0xFF;
 							}
@@ -586,7 +587,7 @@ namespace anes
 				case 0x400D:
 				case 0x400E:
 				case 0x400F:
-					// syncWriteNoise
+					// write noise
 					this.chN.sync_reg[addr & 3] = data;
 					switch (addr & 3)
 					{
@@ -599,7 +600,7 @@ namespace anes
 							break;
 						case 3:
 							this.chN.sync_len_count = this.vblLength[data >> 3] * 2;
-							if (this.sync_reg4015 & (1 << 3))
+							if (this.reg4015_sync & (1 << 3))
 							{
 								this.chN.sync_enable = 0xFF;
 							}
@@ -610,7 +611,7 @@ namespace anes
 				case 0x4011:
 				case 0x4012:
 				case 0x4013:
-					// syncWriteDPCM
+					// write DPCM
 					this.chD.reg[addr & 3] = data;
 					switch (addr & 3)
 					{
@@ -633,7 +634,7 @@ namespace anes
 					}
 					break;
 				case 0x4015:
-					this.sync_reg4015 = data;
+					this.reg4015_sync = data;
 					if (!(data & (1 << 0)))
 					{
 						this.chR[0].sync_enable = 0;
@@ -678,9 +679,8 @@ namespace anes
 					{
 						this.updateFrame();
 					}
-				///FrameCount = 1;
 				case 0x4018:
-					// syncUpdateRectangle
+					// update rectangle
 					for (var i: number = 0; i < 2; i++)
 					{
 						ch = this.chR[i];
@@ -695,7 +695,7 @@ namespace anes
 							}
 						}
 					}
-					// syncUpdateTriangle
+					// update triangle
 					if (this.chT.sync_enable)
 					{
 						if (!(data & 1) && !this.chT.sync_holdnote)
@@ -718,7 +718,7 @@ namespace anes
 							this.chT.sync_counter_start = 0;
 						}
 					}
-					// syncUpdateNoise(data);
+					// update noise
 					if (this.chN.sync_enable && this.chN.sync_len_count > 0)
 					{
 						if (this.chN.sync_len_count && !this.chN.sync_holdnote)
@@ -860,7 +860,7 @@ namespace anes
 			if (this.chN.freq > this.cycleRate)
 			{
 				this.chN.phaseacc += this.chN.freq;
-				if (this.noiseShiftreg(this.chN.xor_tap))
+				if (this.noiseShiftReg(this.chN.xor_tap))
 				{
 					this.chN.output = this.chN.nowvolume;
 				}
@@ -880,7 +880,7 @@ namespace anes
 					break;
 				}
 				this.chN.phaseacc += this.chN.freq;
-				if (this.noiseShiftreg(this.chN.xor_tap))
+				if (this.noiseShiftReg(this.chN.xor_tap))
 				{
 					this.chN.output = this.chN.nowvolume;
 				}
@@ -948,7 +948,7 @@ namespace anes
 			return this.chD.output;
 		}
 		/**
-		 * Update Virtaul DPCM.
+		 * Virtaul Update DPCM.
 		 */
 		public virtualUpdateDPCM(cycles: number): void
 		{
@@ -992,7 +992,7 @@ namespace anes
 		/**
 		 * @private
 		 */
-		public noiseShiftreg(xor_tap: number): number
+		public noiseShiftReg(xor_tap: number): number
 		{
 			var bit0: number;
 			var bit14: number;

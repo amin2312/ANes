@@ -1,4 +1,5 @@
-declare class Stats {
+declare class Stats
+{
   REVISION: number;
   dom: Node;
   addPanel(panel: Stats): Stats;
