@@ -5,6 +5,7 @@ ANes Emulator
 \* AminNes is the First Flash Nes Emulator build in 2009 and it's also my [previous project](https://code.google.com/archive/p/aminnes/).
 
 The features:
+* Very fast and high performance
 * Implemented CPU
 * Implemented PPU
 * Implemented APU
