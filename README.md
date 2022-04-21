@@ -9,7 +9,7 @@ The features:
 * Implemented CPU
 * Implemented PPU
 * Implemented APU
-* Implemented Mapper 1-3
+* Implemented Mapper 0 (part of code: 1, 2, 3, 4)
   
 Demos 
 ----------------

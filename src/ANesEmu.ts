@@ -58,6 +58,11 @@ class ANesEmu
 		var fileInputer = document.getElementById('fileInputer') as HTMLInputElement;
 		fileInputer.onchange = this.loadRomFromLocal;
 		this.installVirtualJoypad();
+		var isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+		if (isTouchDevice)
+		{
+			document.getElementById('myIntro').style.display = 'none';
+		}
 
 		this.showPerformance();
 		//this.loadRomFromUrl('index.rom', this.onLoadROM.bind(this));

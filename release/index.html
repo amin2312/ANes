@@ -2,6 +2,19 @@
 
 <head>
     <meta charSet="utf-8" />
+    <script>
+        __WW1 = (window.screen.width / 540);
+        __WW2 = (540 / (window.screen.width * window.devicePixelRatio));
+        __WW = (__WW1 < __WW2 ? __WW1 : __WW2).toFixed(3);
+        if (navigator.userAgent.toLowerCase().match(/(iPad|iPhone|iPod)/i))
+        {
+            document.write('<meta name="viewport" content="width=540, viewport-fit=cover, user-scalable=yes" />');
+        }
+        else
+        {
+            document.write('<meta name="viewport" content="width=540, user-scalable=yes, initial-scale=' + __WW + '" />');
+        }
+    </script>
 </head>
 <style>
     html {
@@ -15,24 +28,20 @@
         color: #000;
     }
 
-    button {
-        padding: 5px;
-        margin: 5px;
-    }
-
     table {
         border-spacing: 0px;
         border-collapse: collapse;
     }
 
     td {
-        border: 1px #000 solid;
+        border: 1px #999 solid;
     }
 
     #nav {
         height: 30px;
         line-height: 30px;
         font-size: 1.5rem;
+        text-align: center;
         background-color: #EEE;
     }
 
@@ -48,9 +57,15 @@
     }
 
     #main {
-        width: 996px;
+        width: 540px;
         margin: 0px auto;
         text-align: center;
+    }
+    #explain input {
+        margin: 5px;
+    }
+    #explain button {
+        padding: 5px;
     }
     #explain {
         font-size: 1.5rem;
@@ -61,33 +76,45 @@
         margin: 0 auto;
     }
     #myCanvas {
+        margin: 10 auto 0px auto;
         background-color: #000;
         width: 512px;
         height: 480px;
         image-rendering: pixelated;
     }
-    #myBrief {
-        margin: 0 auto;
+    #myIntro {
+        margin: 10 auto 0px auto;
     }
-    #myBrief thead td:first-child, #myBrief thead td:last-child {
+    #myIntro thead td:first-child, #myIntro thead td:last-child {
+        background-color: #EEE;
         text-align: center;
         font-weight: bold;
         height: 32px;
     }
-    #myBrief tbody td {
-        width: 32px;
+    #myIntro tbody td {
+        min-width: 24px;
         padding: 5px 0px;
         text-align: center;
     }
-    #myBrief tfoot td {
+    #myIntro tfoot td {
         text-align: center;
         height: 32px;
         font-weight: bold;
     }
+    .K1 {
+        min-width: 30px !important;
+        color: white;
+        background-color: #369;
+    }
+    .K2 {
+        min-width: 30px !important;
+        background-color: #EEE;
+    }
     #myVirtualJoypad {
-        margin: 0 auto;
+        margin: 10 auto 0px auto;
     }
     #myVirtualJoypad thead td {
+        background-color: #EEE;
         text-align: center;
         font-weight: bold;
         height: 32px;
@@ -113,16 +140,6 @@
         border-left: 1px solid #CCCCCC;
         border-radius: 6px;
     }
-    .K1 {
-        color: white;
-        background-color: #369;
-    }
-    .K2 {
-        background-color: #EEE;
-    }
-    #explain input {
-        margin: 5px;
-    }
     #myStats{
         width: 80px;
         margin: 0 auto;
@@ -133,19 +150,18 @@
 </style>
 
 <body>
+    <div id="nav"><a href="https://github.com/amin2312/ANes">[Home]</a><a href="index.html">[ANes]</a></div>
     <div id="main">
-        <div id="nav"><a href="https://github.com/amin2312/ANes">[Home]</a><a href="index.html">[ANes]</a></div>
         <div style="line-height: 60px; font-size:2rem; font-weight: bold; text-align: center;">ANes emulator</div>
         <div id="explain">
             Bacause the copyright's reason, you need download the ROM from other soucres and load it from local.<br/>
             <span style="font-size: 12px;margin: 5px 0px;display:inline-block;">由于版权的原因，您需要从其他源下载ROM并从本地加载</span><br/>
-            <button><a href="https://www.nesfiles.com/NES/Super_Mario_Bros/Super_mario_brothers.nes">Download 1 (super mario)</a></button><button><a href="https://raw.githubusercontent.com/Kautenja/gym-super-mario-bros/master/gym_super_mario_bros/_roms/super-mario-bros.nes">Download 2 (super mario)</a></button><br/>
+            <button><a href="https://www.nesfiles.com/NES/Super_Mario_Bros/Super_mario_brothers.nes">Download 1 (mario)</a></button>
+            <button><a href="https://raw.githubusercontent.com/Kautenja/gym-super-mario-bros/master/gym_super_mario_bros/_roms/super-mario-bros.nes">Download 2 (mario)</a></button><br/>
             <span style="font-size: 14px;">Load ROM from local-&gt; </span><input id="fileInputer" type="file" style="font-weight: bold;font-size: 14px;width: 180px;"/><span style="font-size: 14px;">&lt;- 加载ROM</span>
         </div>
-        <br/>
         <canvas id="myCanvas" width="256" height="240"></canvas>
-        <br/><br/>
-        <table id="myBrief">
+        <table id="myIntro">
             <thead>
                 <tr>
                     <td colspan="9">1P</td><td></td><td colspan="6">2P</td>
@@ -176,7 +192,6 @@
                 </tr>
             </tfoot>
         </table>
-        <br/>
         <table id="myVirtualJoypad">
             <thead>
                 <tr>
@@ -192,8 +207,7 @@
                 </tr>
             </tbody>
         </table>
-
-        <br/><br/>
+        <br/><br/><br/><br/>
         <div id="myStats"></div>
     </div>
     <br /><br /><br /><br /><br /><br />

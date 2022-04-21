@@ -157,13 +157,13 @@ namespace anes
 				}
 				else
 				{
-					console.log('read mapper lower - 1');
+					console.log('read mapper lower - 1', addr);
 				}
 			}
 			else if (seg == 0x03)
 			{
 				/* $6000-$7FFF(Mapper Lower) */
-				console.log('read mapper lower - 2');
+				console.log('read mapper lower - 2', addr);
 				return 0;
 			}
 			else
@@ -221,13 +221,13 @@ namespace anes
 				}
 				else
 				{
-					console.log('write mapper lower - 1');
+					console.log('write mapper lower - 1', addr);
 				}
 			}
 			else if (seg == 0x03)
 			{
 				/* $6000-$7FFF(Mapper Lower) */
-				console.log('write mapper lower - 2');
+				console.log('write mapper lower - 2', addr);
 			}
 			else
 			{

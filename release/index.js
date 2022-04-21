@@ -56,6 +56,10 @@ var ANesEmu = /** @class */ (function () {
         var fileInputer = document.getElementById('fileInputer');
         fileInputer.onchange = this.loadRomFromLocal;
         this.installVirtualJoypad();
+        var isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        if (isTouchDevice) {
+            document.getElementById('myIntro').style.display = 'none';
+        }
         this.showPerformance();
         //this.loadRomFromUrl('index.rom', this.onLoadROM.bind(this));
     }
@@ -1385,12 +1389,12 @@ var anes;
                     }
                 }
                 else {
-                    console.log('read mapper lower - 1');
+                    console.log('read mapper lower - 1', addr);
                 }
             }
             else if (seg == 0x03) {
                 /* $6000-$7FFF(Mapper Lower) */
-                console.log('read mapper lower - 2');
+                console.log('read mapper lower - 2', addr);
                 return 0;
             }
             else {
@@ -1436,12 +1440,12 @@ var anes;
                     }
                 }
                 else {
-                    console.log('write mapper lower - 1');
+                    console.log('write mapper lower - 1', addr);
                 }
             }
             else if (seg == 0x03) {
                 /* $6000-$7FFF(Mapper Lower) */
-                console.log('write mapper lower - 2');
+                console.log('write mapper lower - 2', addr);
             }
             else {
                 /* $6000-$FFFF(P-ROM) */
