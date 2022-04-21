@@ -38,7 +38,12 @@ class ANesEmu
 	/**
 	 * TV Audio Context Processor.
 	 */
-	private _tvAudioProcessor:ScriptProcessorNode;
+	private _tvAudioProcessor: ScriptProcessorNode;
+	/**
+	 * Virtual Joypad Ids.
+	 */
+	private _vjIds = ['VJ_U', 'VJ_D', 'VJ_L', 'VJ_R', 'VJ_SL', 'VJ_ST', 'VJ_B', 'VJ_A'];
+	private _vjKeys = [87, 83, 65, 68, 70, 71, 86, 66];
 	/**
 	 * Constructor.
 	 */
@@ -52,9 +57,23 @@ class ANesEmu
 		window.onblur = this.onDeactivate.bind(this);
 		var fileInputer = document.getElementById('fileInputer') as HTMLInputElement;
 		fileInputer.onchange = this.loadRomFromLocal;
+		this.installVirtualJoypad();
 
 		this.showPerformance();
 		//this.loadRomFromUrl('index.rom', this.onLoadROM.bind(this));
+	}
+	/**
+	 * Install virtual joypad
+	 */
+	public installVirtualJoypad(): void
+	{
+		for (var i = 0; i < this._vjIds.length; i++)
+		{
+			var id = this._vjIds[i];
+			var bn = document.getElementById(id);
+			bn.addEventListener('pointerdown', this.onDownVirtualJoypad.bind(this));
+			bn.addEventListener('pointerup', this.onUpVirtualJoypad.bind(this));
+		}
 	}
 	/**
 	 * Load ROM from local.
@@ -173,6 +192,32 @@ class ANesEmu
 		if (this.vm != null && this.vm.stop == false)
 		{
 			this.vm.renderSample(e.outputBuffer);
+		}
+	}
+	/**
+	 * @private
+	 */
+	private onDownVirtualJoypad(e: PointerEvent): void
+	{
+		var bn = e.target as HTMLElement;
+		var index = this._vjIds.indexOf(bn.id);
+		var key = this._vjKeys[index];
+		if (this.vm != null && this.vm.stop == false)
+		{
+			this.vm.onKeyDown(key);
+		}
+	}
+	/**
+	 * @private
+	 */
+	private onUpVirtualJoypad(e: Event): void
+	{
+		var bn = e.target as HTMLElement;
+		var index = this._vjIds.indexOf(bn.id);
+		var key = this._vjKeys[index];
+		if (this.vm != null && this.vm.stop == false)
+		{
+			this.vm.onKeyUp(key);
 		}
 	}
 	/**

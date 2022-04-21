@@ -47,7 +47,7 @@ namespace anes
 		private B2_u: number;
 		private B1_d: number;
 		private B2_d: number;
-		private B1_se: number;
+		private B1_sl: number;
 		private B1_st: number;
 		private B1_b: number;
 		private B2_b: number;
@@ -72,7 +72,7 @@ namespace anes
 		public P2_u: number;
 		public P1_d: number;
 		public P2_d: number;
-		public P1_se: number;
+		public P1_sl: number;
 		public P1_st: number;
 		public P1_b: number;
 		public P2_b: number;
@@ -182,13 +182,13 @@ namespace anes
 		/**
 		 * 3.Insert Joypay.
 		 */
-		public insertJoypay(P1_r: number = 68, P1_l: number = 65, P1_u: number = 87, P1_d: number = 83, P1_se: number = 70, P1_st: number = 71, P1_b: number = 86, P1_a: number = 66, P1_b2: number = 67, P1_a2: number = 78, P2_r: number = 39, P2_l: number = 37, P2_u: number = 38, P2_d: number = 40, P2_b: number = 219, P2_a: number = 221, P2_b2: number = 189, P2_a2: number = 187): void
+		public insertJoypay(P1_r: number = 68, P1_l: number = 65, P1_u: number = 87, P1_d: number = 83, P1_sl: number = 70, P1_st: number = 71, P1_b: number = 86, P1_a: number = 66, P1_b2: number = 67, P1_a2: number = 78, P2_r: number = 39, P2_l: number = 37, P2_u: number = 38, P2_d: number = 40, P2_b: number = 219, P2_a: number = 221, P2_b2: number = 189, P2_a2: number = 187): void
 		{
 			this.P1_r = P1_r;
 			this.P1_l = P1_l;
 			this.P1_u = P1_u;
 			this.P1_d = P1_d;
-			this.P1_se = P1_se;
+			this.P1_sl = P1_sl;
 			this.P1_st = P1_st;
 			this.P1_b = P1_b;
 			this.P1_a = P1_a;
@@ -220,7 +220,7 @@ namespace anes
 			var B1_aa: number = this.B1_a2 ? (this.B1_at ^= 1) : this.B1_a;
 			var B2_bb: number = this.B2_b2 ? (this.B2_bt ^= 2) : this.B2_b;
 			var B2_aa: number = this.B2_a2 ? (this.B2_at ^= 1) : this.B2_a;
-			pulse1 = B1_aa | B1_bb | this.B1_u | this.B1_d | this.B1_l | this.B1_r | this.B1_se | this.B1_st;
+			pulse1 = B1_aa | B1_bb | this.B1_u | this.B1_d | this.B1_l | this.B1_r | this.B1_sl | this.B1_st;
 			pulse2 = B2_aa | B2_bb | this.B2_u | this.B2_d | this.B2_l | this.B2_r;
 			//console.log(pulse1, pulse2);
 			// inputs signals
@@ -349,9 +349,9 @@ namespace anes
 			{
 				this.B1_st = 8;
 			}
-			else if (keyCode == this.P1_se)
+			else if (keyCode == this.P1_sl)
 			{
-				this.B1_se = 4;
+				this.B1_sl = 4;
 			}
 			else if (keyCode == this.P1_b)
 			{
@@ -428,9 +428,9 @@ namespace anes
 			{
 				this.B1_st = 0;
 			}
-			else if (keyCode == this.P1_se)
+			else if (keyCode == this.P1_sl)
 			{
-				this.B1_se = 0;
+				this.B1_sl = 0;
 			}
 			else if (keyCode == this.P1_b)
 			{

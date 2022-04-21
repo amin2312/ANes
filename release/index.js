@@ -42,6 +42,11 @@ var ANesEmu = /** @class */ (function () {
          * TV Image Frame Data.
          */
         this._tvImageFrameData = null;
+        /**
+         * Virtual Joypad Ids.
+         */
+        this._vjIds = ['VJ_U', 'VJ_D', 'VJ_L', 'VJ_R', 'VJ_SL', 'VJ_ST', 'VJ_B', 'VJ_A'];
+        this._vjKeys = [87, 83, 65, 68, 70, 71, 86, 66];
         document.addEventListener('keydown', this.onKeyDown.bind(this));
         document.addEventListener('keyup', this.onKeyUp.bind(this));
         window.requestAnimationFrame(this.onFrame.bind(this));
@@ -50,9 +55,21 @@ var ANesEmu = /** @class */ (function () {
         window.onblur = this.onDeactivate.bind(this);
         var fileInputer = document.getElementById('fileInputer');
         fileInputer.onchange = this.loadRomFromLocal;
+        this.installVirtualJoypad();
         this.showPerformance();
         //this.loadRomFromUrl('index.rom', this.onLoadROM.bind(this));
     }
+    /**
+     * Install virtual joypad
+     */
+    ANesEmu.prototype.installVirtualJoypad = function () {
+        for (var i = 0; i < this._vjIds.length; i++) {
+            var id = this._vjIds[i];
+            var bn = document.getElementById(id);
+            bn.addEventListener('pointerdown', this.onDownVirtualJoypad.bind(this));
+            bn.addEventListener('pointerup', this.onUpVirtualJoypad.bind(this));
+        }
+    };
     /**
      * Load ROM from local.
      */
@@ -152,6 +169,28 @@ var ANesEmu = /** @class */ (function () {
     ANesEmu.prototype.onSample = function (e) {
         if (this.vm != null && this.vm.stop == false) {
             this.vm.renderSample(e.outputBuffer);
+        }
+    };
+    /**
+     * @private
+     */
+    ANesEmu.prototype.onDownVirtualJoypad = function (e) {
+        var bn = e.target;
+        var index = this._vjIds.indexOf(bn.id);
+        var key = this._vjKeys[index];
+        if (this.vm != null && this.vm.stop == false) {
+            this.vm.onKeyDown(key);
+        }
+    };
+    /**
+     * @private
+     */
+    ANesEmu.prototype.onUpVirtualJoypad = function (e) {
+        var bn = e.target;
+        var index = this._vjIds.indexOf(bn.id);
+        var key = this._vjKeys[index];
+        if (this.vm != null && this.vm.stop == false) {
+            this.vm.onKeyUp(key);
         }
     };
     /**
@@ -5467,12 +5506,12 @@ var anes;
         /**
          * 3.Insert Joypay.
          */
-        VM.prototype.insertJoypay = function (P1_r, P1_l, P1_u, P1_d, P1_se, P1_st, P1_b, P1_a, P1_b2, P1_a2, P2_r, P2_l, P2_u, P2_d, P2_b, P2_a, P2_b2, P2_a2) {
+        VM.prototype.insertJoypay = function (P1_r, P1_l, P1_u, P1_d, P1_sl, P1_st, P1_b, P1_a, P1_b2, P1_a2, P2_r, P2_l, P2_u, P2_d, P2_b, P2_a, P2_b2, P2_a2) {
             if (P1_r === void 0) { P1_r = 68; }
             if (P1_l === void 0) { P1_l = 65; }
             if (P1_u === void 0) { P1_u = 87; }
             if (P1_d === void 0) { P1_d = 83; }
-            if (P1_se === void 0) { P1_se = 70; }
+            if (P1_sl === void 0) { P1_sl = 70; }
             if (P1_st === void 0) { P1_st = 71; }
             if (P1_b === void 0) { P1_b = 86; }
             if (P1_a === void 0) { P1_a = 66; }
@@ -5490,7 +5529,7 @@ var anes;
             this.P1_l = P1_l;
             this.P1_u = P1_u;
             this.P1_d = P1_d;
-            this.P1_se = P1_se;
+            this.P1_sl = P1_sl;
             this.P1_st = P1_st;
             this.P1_b = P1_b;
             this.P1_a = P1_a;
@@ -5519,7 +5558,7 @@ var anes;
             var B1_aa = this.B1_a2 ? (this.B1_at ^= 1) : this.B1_a;
             var B2_bb = this.B2_b2 ? (this.B2_bt ^= 2) : this.B2_b;
             var B2_aa = this.B2_a2 ? (this.B2_at ^= 1) : this.B2_a;
-            pulse1 = B1_aa | B1_bb | this.B1_u | this.B1_d | this.B1_l | this.B1_r | this.B1_se | this.B1_st;
+            pulse1 = B1_aa | B1_bb | this.B1_u | this.B1_d | this.B1_l | this.B1_r | this.B1_sl | this.B1_st;
             pulse2 = B2_aa | B2_bb | this.B2_u | this.B2_d | this.B2_l | this.B2_r;
             //console.log(pulse1, pulse2);
             // inputs signals
@@ -5628,8 +5667,8 @@ var anes;
             else if (keyCode == this.P1_st) {
                 this.B1_st = 8;
             }
-            else if (keyCode == this.P1_se) {
-                this.B1_se = 4;
+            else if (keyCode == this.P1_sl) {
+                this.B1_sl = 4;
             }
             else if (keyCode == this.P1_b) {
                 this.B1_b = 2;
@@ -5688,8 +5727,8 @@ var anes;
             else if (keyCode == this.P1_st) {
                 this.B1_st = 0;
             }
-            else if (keyCode == this.P1_se) {
-                this.B1_se = 0;
+            else if (keyCode == this.P1_sl) {
+                this.B1_sl = 0;
             }
             else if (keyCode == this.P1_b) {
                 this.B1_b = 0;
