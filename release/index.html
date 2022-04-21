@@ -16,7 +16,7 @@
     }
 
     button {
-        padding: 0px;
+        padding: 5px;
         margin: 5px;
     }
 
@@ -84,12 +84,36 @@
     .K2 {
         background-color: #EEE;
     }
+    #explain {
+        font-size: 1.5rem;
+        width: 512px;
+        border: #000 solid 1px;
+        background-color: #EEE;
+        padding: 5px;
+        margin: 0 auto;
+    }
+    #explain input {
+        margin: 5px;
+    }
+    #myStats{
+        width: 80px;
+        margin: 0 auto;
+    }
+    #myStats div {
+        position:relative !important;
+    }
 </style>
 
 <body>
     <div id="main">
         <div id="nav"><a href="https://github.com/amin2312/ANes">[Home]</a><a href="index.html">[ANes]</a></div>
         <div style="line-height: 60px; font-size:2rem; font-weight: bold; text-align: center;">ANes emulator</div>
+        <div id="explain">
+            Bacause the copyright's reason, you need download the ROM from other soucres and load it from local.<br/>
+            <button><a href="https://www.nesfiles.com/NES/Super_Mario_Bros/Super_mario_brothers.nes">Download 1 (super mario)</a></button><button><a href="https://raw.githubusercontent.com/Kautenja/gym-super-mario-bros/master/gym_super_mario_bros/_roms/super-mario-bros.nes">Download 2 (super mario)</a></button><br/>
+            <span>Load ROM from local =&gt; </span><input id="fileInputer" type="file" style="font-weight: bold;"/>
+        </div>
+        <br/>
         <canvas id="myCanvas" width="256" height="240"></canvas>
         <br/><br/>
         <table id="myBrief">
@@ -118,6 +142,8 @@
                 </tr>
             </tfoot>
         </table>
+        <br/><br/>
+        <div id="myStats"></div>
     </div>
     <br /><br /><br /><br /><br /><br />
 </body>

@@ -1,14 +1,14 @@
-﻿namespace anes
+﻿/**
+ * 1. Copyright (c) 2022 amin2312
+ * 2. Version 1.0.0
+ * 3. MIT License
+ *
+ * ANes is nes emulator base on javascript. It is port version of AminNes(©2009).
+ */
+namespace anes
 {
 	/**
-	 * 1. Copyright (c) 2022 amin2312
-	 * 2. Version 1.0.0
-	 * 3. MIT License
-	 *
-	 * ANes is nes emulator base on javascript. It is port version of AminNes(©2009).
-	 * 
 	 * Virtual Machine.
-	 * 
 	 */
 	export class VM
 	{
@@ -162,6 +162,8 @@
 
 			// byte[8-F]
 			// Preserve,must be 0
+			
+			console.log('ROM info:' + this.bus.mapperNo);
 
 			// Cope mapper
 			this.bus.mapperW = this.bus.mappersW[this.bus.mapperNo];

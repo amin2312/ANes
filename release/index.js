@@ -15,25 +15,13 @@ var __extends = (this && this.__extends) || (function () {
     };
 })();
 /**
- * NES模拟器.
+ * 1. Copyright (c) 2022 amin2312
+ * 2. Version 1.0.0
+ * 3. MIT License
+ *
+ * ANes is nes emulator base on javascript. It is port version of AminNes(©2009).
  */
 var ANesEmu = /** @class */ (function () {
-    /**
-     * [二进制文件] 图像.
-     */
-    //[Embed(source = "../ui.swf", mimeType = "application/octet-stream")]
-    //public static UiBin: Class;
-    /**
-     * 外观.
-     */
-    //public static ui: UI;
-    /**
-     * 属性.
-    public static output: TextField = new TextField;
-    private binLoader: URLLoader;
-    private tracker: Loader;
-    private romUrl: String;
-     */
     /**
      * Constructor.
      */
@@ -43,47 +31,43 @@ var ANesEmu = /** @class */ (function () {
          */
         this._stats = null;
         /**
-         * TV.
-         */
-        this.TV = null;
-        /**
-         * the image data bind of TV
-         */
-        this.TVD = null;
-        /**
          * Virtual Machine
          */
         this.vm = null;
-        this.showPerformance();
-        this.loadRomFromUrl('index.rom', this.onLoadROM.bind(this));
+        /**
+         * TV.
+         */
+        this._tv = null;
+        /**
+         * TV Image Frame Data.
+         */
+        this._tvImageFrameData = null;
         document.addEventListener('keydown', this.onKeyDown.bind(this));
         document.addEventListener('keyup', this.onKeyUp.bind(this));
         window.requestAnimationFrame(this.onFrame.bind(this));
-        document.onpointerdown = function () {
-            if (this._ctxAudio == null) {
-                this._ctxAudio = new window.AudioContext();
-                var asp = this._ctxAudio.createScriptProcessor(2048, 0, 2);
-                asp.onaudioprocess = this.onSample.bind(this);
-                asp.connect(this._ctxAudio.destination);
-            }
-        }.bind(this);
-        /*
-        // 3.加载ROM
-        romUrl = this.loaderInfo.parameters.romUrl || 'default.txt';
-        binLoader = new URLLoader;
-        binLoader.dataFormat = URLLoaderDataFormat.BINARY;
-        binLoader.addEventListener(Event.COMPLETE, onCompleteBin);
-        binLoader.addEventListener(ProgressEvent.PROGRESS, onLoadingBin);
-        binLoader.addEventListener(IOErrorEvent.IO_ERROR, onErrorBin);
-        binLoader.addEventListener(SecurityErrorEvent.SECURITY_ERROR, onErrorBin);
-        binLoader.load(new URLRequest(romUrl));
-        // 4.加载UI
-        uiLoader: Loader = new Loader;
-        uiLoader.loadBytes(new UiBin);
-        uiLoader.contentLoaderInfo.addEventListener(Event.COMPLETE, onCompleteUI);
-        addChild(uiLoader);
-        */
+        //document.onpointerdown = function (this: ANesEmu): void{}.bind(this);
+        window.onfocus = this.onActivate.bind(this);
+        window.onblur = this.onDeactivate.bind(this);
+        var fileInputer = document.getElementById('fileInputer');
+        fileInputer.onchange = this.loadRomFromLocal;
+        this.showPerformance();
+        //this.loadRomFromUrl('index.rom', this.onLoadROM.bind(this));
     }
+    /**
+     * Load ROM from local.
+     */
+    ANesEmu.prototype.loadRomFromLocal = function (e1) {
+        var reader = new FileReader();
+        reader.onload = function (e2) {
+            var content = e2.target.result;
+            myEmu.onLoadROM(content);
+        };
+        reader.onerror = function (err) {
+            console.error("Failed to read file", err);
+        };
+        var inputer = e1.target;
+        reader.readAsArrayBuffer(inputer.files[0]);
+    };
     /**
      * Load ROM from url.
      */
@@ -109,12 +93,22 @@ var ANesEmu = /** @class */ (function () {
      * @private
      */
     ANesEmu.prototype.onLoadROM = function (bytes) {
+        console.log('onLoadRom success');
         this._rom = bytes;
         // init TV
         var canvas = document.getElementById('myCanvas');
-        this._ctxGraph = canvas.getContext('2d');
-        this.TV = canvas;
-        this.TVD = this._ctxGraph.createImageData(canvas.width, canvas.height);
+        this._tv = canvas;
+        this._txImage = canvas.getContext('2d');
+        this._tvImageFrameData = this._txImage.createImageData(canvas.width, canvas.height);
+        if (this._tvAudio != null) {
+            this._tvAudio.close();
+            this._tvAudioProcessor.disconnect();
+            this._tvAudioProcessor.onaudioprocess = null;
+        }
+        this._tvAudio = new window.AudioContext();
+        this._tvAudioProcessor = this._tvAudio.createScriptProcessor(2048, 0, 2);
+        this._tvAudioProcessor.onaudioprocess = this.onSample.bind(this);
+        this._tvAudioProcessor.connect(this._tvAudio.destination);
         // replay game
         this.replay();
     };
@@ -128,10 +122,10 @@ var ANesEmu = /** @class */ (function () {
         // 1.create VM
         this.vm = new anes.VM();
         // 2.connect TV
-        this.vm.connect(this.TVD);
+        this.vm.connect(this._tvImageFrameData);
         // 3.insert cartridge
         this.vm.insertCartridge(this._rom);
-        // 连接手柄
+        // 4.insert joypay
         this.vm.insertJoypay();
     };
     /**
@@ -141,11 +135,11 @@ var ANesEmu = /** @class */ (function () {
         if (this._stats != null) {
             this._stats.begin();
         }
-        if (this.TV != null && this.TVD != null) {
-            this._ctxGraph.putImageData(this.TVD, 0, 0);
-        }
-        if (this.vm != null) {
+        if (this.vm != null && this.vm.stop == false) {
             this.vm.renderFrame();
+            if (this._tv != null && this._tvImageFrameData != null) {
+                this._txImage.putImageData(this._tvImageFrameData, 0, 0);
+            }
         }
         if (this._stats != null) {
             this._stats.end();
@@ -156,8 +150,42 @@ var ANesEmu = /** @class */ (function () {
      * @private
      */
     ANesEmu.prototype.onSample = function (e) {
-        if (this.vm != null) {
+        if (this.vm != null && this.vm.stop == false) {
             this.vm.renderSample(e.outputBuffer);
+        }
+    };
+    /**
+     * @private
+     */
+    ANesEmu.prototype.onKeyDown = function (e) {
+        if (this.vm != null && this.vm.stop == false) {
+            this.vm.onKeyDown(e.keyCode);
+        }
+    };
+    /**
+     * @private
+     */
+    ANesEmu.prototype.onKeyUp = function (e) {
+        if (this.vm != null && this.vm.stop == false) {
+            this.vm.onKeyUp(e.keyCode);
+        }
+    };
+    /**
+     * @private
+     */
+    ANesEmu.prototype.onActivate = function (e) {
+        if (this.vm != null) {
+            this.vm.stop = false;
+            console.log('Pause VM');
+        }
+    };
+    /**
+     * @private
+     */
+    ANesEmu.prototype.onDeactivate = function (e) {
+        if (this.vm != null) {
+            this.vm.stop = true;
+            console.log('Resume VM');
         }
     };
     /**
@@ -169,28 +197,11 @@ var ANesEmu = /** @class */ (function () {
         }
         this._stats = new Stats();
         this._stats.showPanel(0); /* 0: fps, 1: ms, 2: mb, 3+: custom */
-        document.body.appendChild(this._stats.dom);
-    };
-    /**
-     * @private
-     */
-    ANesEmu.prototype.onKeyDown = function (e) {
-        if (this.vm != null) {
-            this.vm.onKeyDown(e.keyCode);
-        }
-    };
-    /**
-     * @private
-     */
-    ANesEmu.prototype.onKeyUp = function (e) {
-        if (this.vm != null) {
-            this.vm.onKeyUp(e.keyCode);
-        }
+        document.getElementById('myStats').appendChild(this._stats.dom);
     };
     return ANesEmu;
 }());
-//debugger;
-var ANewEmu = new ANesEmu();
+var myEmu = new ANesEmu();
 var anes;
 (function (anes) {
     /**
@@ -223,6 +234,9 @@ var anes;
             _this.sampleBuffer = new Float32Array(2048 * 128);
             _this.sampleReadPos = 0;
             _this.sampleWritePos = 0;
+            /**
+             * Channels.
+             */
             _this.chR = [new RECTANGLE(), new RECTANGLE()];
             _this.chT = new TRIANGLE();
             _this.chN = new NOISE();
@@ -233,11 +247,10 @@ var anes;
             _this.noiseFreq = new Int32Array([4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068]);
             _this.dpcmCycles = new Int32Array([428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106, 85, 72, 54]);
             _this.reg4015 = 0;
-            _this.sync_reg4015 = 0;
+            _this.reg4015_sync = 0;
             _this.elapsedTime = 0;
             _this.frameCycles = 0;
             _this.samplingRate = 22050;
-            _this.bus = bus;
             _this.bus = bus;
             _this.cycleRate = (anes.CPU.frequency * 65536 / _this.samplingRate);
             return _this;
@@ -274,12 +287,12 @@ var anes;
         /**
          * Shift sample.
          */
-        APU.prototype.shiftSample = function (writetime) {
+        APU.prototype.shiftSample = function (writeTime) {
             if (this.samples.length == 0) {
                 return null;
             }
             var q = this.samples[0];
-            if (q.time <= writetime) {
+            if (q.time <= writeTime) {
                 this.samples.shift();
                 return q;
             }
@@ -292,7 +305,9 @@ var anes;
             var onceSamples = 2048;
             var bodySize = this.sampleWritePos;
             var availableSize = bodySize - this.sampleReadPos;
+            //console.log('pushSamplesTo', availableSize);
             if (availableSize < onceSamples) {
+                //console.log('empty note', availableSize);
                 // fill empty
                 for (var ch = 0; ch < output.numberOfChannels; ch++) {
                     var outputData = output.getChannelData(ch);
@@ -316,6 +331,7 @@ var anes;
                 this.sampleBuffer.copyWithin(0, this.sampleReadPos, bodySize);
                 this.sampleReadPos = 0;
                 this.sampleWritePos = sliceLen;
+                //console.log('sliceLen', bodySize, sliceLen);
             }
         };
         /**
@@ -333,7 +349,7 @@ var anes;
             vol[2] = 0x130;
             vol[3] = 0x0C0;
             vol[4] = 0x0F0;
-            // flush all samples
+            // flush accumulated samples
             if (this.elapsedTime > this.bus.cpu.execedCC) {
                 while (this.samples.length) {
                     s = this.samples.shift();
@@ -382,7 +398,6 @@ var anes;
                 this.sampleWritePos++;
                 this.sampleWritePos %= 2048 * 128;
                 // sum time
-                //elapsedTime += 6.764063492063492;
                 this.elapsedTime += 81.168820;
             }
             // sync time
@@ -404,7 +419,7 @@ var anes;
                     case 0x4005:
                     case 0x4006:
                     case 0x4007:
-                        // WriteRectangle
+                        // write rectangle
                         no = (addr < 0x4004) ? 0 : 1;
                         ch = this.chR[no];
                         ch.reg[addr & 3] = data;
@@ -442,7 +457,7 @@ var anes;
                     case 0x4009:
                     case 0x400A:
                     case 0x400B:
-                        // WriteTriangle
+                        // write triangle
                         this.chT.reg[addr & 3] = data;
                         switch (addr & 3) {
                             case 0:
@@ -467,7 +482,7 @@ var anes;
                     case 0x400D:
                     case 0x400E:
                     case 0x400F:
-                        // WriteNoise
+                        // write noise
                         this.chN.reg[addr & 3] = data;
                         switch (addr & 3) {
                             case 0:
@@ -496,7 +511,7 @@ var anes;
                     case 0x4011:
                     case 0x4012:
                     case 0x4013:
-                        // WriteDPCM
+                        // write DPCM
                         this.chD.reg[addr & 3] = data;
                         switch (addr & 3) {
                             case 0:
@@ -548,7 +563,7 @@ var anes;
                         }
                         break;
                     case 0x4018:
-                        // updateRectangle
+                        // update rectangle
                         for (var i = 0; i < 2; i++) {
                             ch = this.chR[i];
                             if (ch.enable && ch.len_count > 0) {
@@ -595,7 +610,7 @@ var anes;
                                 }
                             }
                         }
-                        // updateTriangle
+                        // update triangle
                         if (this.chT.enable) {
                             if (!(data & 1) && !this.chT.holdnote) {
                                 if (this.chT.len_count) {
@@ -612,7 +627,7 @@ var anes;
                                 this.chT.counter_start = 0;
                             }
                         }
-                        // updateNoise
+                        // update noise
                         if (this.chN.enable && this.chN.len_count > 0) {
                             if (!this.chN.holdnote) {
                                 if (!(data & 1) && this.chN.len_count) {
@@ -654,6 +669,7 @@ var anes;
                 case 0x4005:
                 case 0x4006:
                 case 0x4007:
+                    // write rectangle
                     no = (addr < 0x4004) ? 0 : 1;
                     ch = this.chR[no];
                     ch.sync_reg[addr & 3] = data;
@@ -666,7 +682,7 @@ var anes;
                             break;
                         case 3:
                             ch.sync_len_count = this.vblLength[data >> 3] * 2;
-                            if (this.sync_reg4015 & (1 << no)) {
+                            if (this.reg4015_sync & (1 << no)) {
                                 ch.sync_enable = 0xFF;
                             }
                             break;
@@ -676,7 +692,7 @@ var anes;
                 case 0x4009:
                 case 0x400A:
                 case 0x400B:
-                    // syncWriteTriangle
+                    // write triangle
                     this.chT.sync_reg[addr & 3] = data;
                     switch (addr & 3) {
                         case 0:
@@ -689,7 +705,7 @@ var anes;
                         case 3:
                             this.chT.sync_len_count = this.vblLength[this.chT.sync_reg[3] >> 3] * 2;
                             this.chT.sync_counter_start = 0x80;
-                            if (this.sync_reg4015 & (1 << 2)) {
+                            if (this.reg4015_sync & (1 << 2)) {
                                 this.chT.sync_enable = 0xFF;
                             }
                             break;
@@ -699,7 +715,7 @@ var anes;
                 case 0x400D:
                 case 0x400E:
                 case 0x400F:
-                    // syncWriteNoise
+                    // write noise
                     this.chN.sync_reg[addr & 3] = data;
                     switch (addr & 3) {
                         case 0:
@@ -711,7 +727,7 @@ var anes;
                             break;
                         case 3:
                             this.chN.sync_len_count = this.vblLength[data >> 3] * 2;
-                            if (this.sync_reg4015 & (1 << 3)) {
+                            if (this.reg4015_sync & (1 << 3)) {
                                 this.chN.sync_enable = 0xFF;
                             }
                             break;
@@ -721,7 +737,7 @@ var anes;
                 case 0x4011:
                 case 0x4012:
                 case 0x4013:
-                    // syncWriteDPCM
+                    // write DPCM
                     this.chD.reg[addr & 3] = data;
                     switch (addr & 3) {
                         case 0:
@@ -742,7 +758,7 @@ var anes;
                     }
                     break;
                 case 0x4015:
-                    this.sync_reg4015 = data;
+                    this.reg4015_sync = data;
                     if (!(data & (1 << 0))) {
                         this.chR[0].sync_enable = 0;
                         this.chR[0].sync_len_count = 0;
@@ -779,9 +795,8 @@ var anes;
                     if (data & 0x80) {
                         this.updateFrame();
                     }
-                ///FrameCount = 1;
                 case 0x4018:
-                    // syncUpdateRectangle
+                    // update rectangle
                     for (var i = 0; i < 2; i++) {
                         ch = this.chR[i];
                         if (ch.sync_enable && ch.sync_len_count > 0) {
@@ -792,7 +807,7 @@ var anes;
                             }
                         }
                     }
-                    // syncUpdateTriangle
+                    // update triangle
                     if (this.chT.sync_enable) {
                         if (!(data & 1) && !this.chT.sync_holdnote) {
                             if (this.chT.sync_len_count) {
@@ -809,7 +824,7 @@ var anes;
                             this.chT.sync_counter_start = 0;
                         }
                     }
-                    // syncUpdateNoise(data);
+                    // update noise
                     if (this.chN.sync_enable && this.chN.sync_len_count > 0) {
                         if (this.chN.sync_len_count && !this.chN.sync_holdnote) {
                             if (!(data & 1) && this.chN.sync_len_count) {
@@ -920,7 +935,7 @@ var anes;
             }
             if (this.chN.freq > this.cycleRate) {
                 this.chN.phaseacc += this.chN.freq;
-                if (this.noiseShiftreg(this.chN.xor_tap)) {
+                if (this.noiseShiftReg(this.chN.xor_tap)) {
                     this.chN.output = this.chN.nowvolume;
                 }
                 else {
@@ -936,7 +951,7 @@ var anes;
                     break;
                 }
                 this.chN.phaseacc += this.chN.freq;
-                if (this.noiseShiftreg(this.chN.xor_tap)) {
+                if (this.noiseShiftReg(this.chN.xor_tap)) {
                     this.chN.output = this.chN.nowvolume;
                 }
                 else {
@@ -989,7 +1004,7 @@ var anes;
             return this.chD.output;
         };
         /**
-         * Update Virtaul DPCM.
+         * Virtaul Update DPCM.
          */
         APU.prototype.virtualUpdateDPCM = function (cycles) {
             this.frameCycles += cycles;
@@ -1023,7 +1038,7 @@ var anes;
         /**
          * @private
          */
-        APU.prototype.noiseShiftreg = function (xor_tap) {
+        APU.prototype.noiseShiftReg = function (xor_tap) {
             var bit0;
             var bit14;
             bit0 = this.chN.shift_reg & 1;
@@ -1232,7 +1247,7 @@ var anes;
 var anes;
 (function (anes) {
     /**
-     * CPU(6502).
+     * 6502 CPU.
      */
     var CPU = /** @class */ (function (_super) {
         __extends(CPU, _super);
@@ -1243,7 +1258,6 @@ var anes;
             var _this = _super.call(this) || this;
             _this.onceExecedCC = 0; // clock cycles of executed in once exec
             _this.execedCC = 0; // clock cycles of executed
-            _this._ii = 0;
             _this.bus = bus;
             // initialize registers
             _this.A = _this.X = _this.Y = _this.P = _this.PC16 = 0;
@@ -1395,6 +1409,7 @@ var anes;
                 this.bus.mapperW(addr, value);
             }
         };
+        //private _ii = 0;
         /**
          * execution instruction(execute instruction
          */
@@ -4081,14 +4096,14 @@ var anes;
             if (this.shiftReg < 5) {
                 return;
             }
-            // register 0(configuration)
+            // register 0 (configuration)
             if (addr < 0xA000) {
                 this.bus.mirrorV = !(this.temp & 0x1);
                 this.bus.mirrorS = !(this.temp & 0x2);
                 this.romMode = (this.temp & 0xC) >> 2;
                 this.b8kVRom = !(this.temp & 0x10);
             }
-            // register 1(swtich lower VROM of 4K or 8K)
+            // register 1 (swtich lower VROM of 4K or 8K)
             else if (addr < 0xC000) {
                 this.temp &= 0x1F;
                 if (this.reg1 == this.temp) {
@@ -4107,7 +4122,7 @@ var anes;
                     this.bus.ppu.VRAM[i] = this.bus.rom[offset + i];
                 }
             }
-            // register 2(swtich upper VROM of 4K)
+            // register 2 (swtich upper VROM of 4K)
             else if (addr < 0xE000) {
                 this.temp &= 0x1F;
                 if (this.reg2 == this.temp) {
@@ -4122,7 +4137,7 @@ var anes;
                     this.bus.ppu.VRAM[0x1000 + i] = this.bus.rom[offset + i];
                 }
             }
-            // register 3(swtich PRG-ROM bank)
+            // register 3 (swtich PRG-ROM bank)
             else {
                 if (this.reg3 == this.temp) {
                     return;
@@ -5137,7 +5152,7 @@ var anes;
                         }
                         this.point = (this.bitY * 256) + this.bitX; // current render point
                         this.bgPoint = this.background[this.point]; // 对应的背景点
-                        // if it is in foreground and isnt transparent(如果在前景或背景为透明的话)
+                        // if it is in foreground and isnt transparent (如果在前景或背景为透明的话)
                         if (this.foreground || this.bgPoint == 0) {
                             this.pal_index = this.u_bit_pal << 2 | this.l_bit_pal; // make color index
                             this.pal_data = this.VRAM[0x3F10 + this.pal_index];
@@ -5339,6 +5354,13 @@ var anes;
     }(anes.Node));
     anes.PPU = PPU;
 })(anes || (anes = {}));
+/**
+ * 1. Copyright (c) 2022 amin2312
+ * 2. Version 1.0.0
+ * 3. MIT License
+ *
+ * ANes is nes emulator base on javascript. It is port version of AminNes(©2009).
+ */
 var anes;
 (function (anes) {
     /**
@@ -5428,6 +5450,7 @@ var anes;
             this.bus.mapperNo |= (rom[7] & 0xF0); // Upper 4 bits of Mapper
             // byte[8-F]
             // Preserve,must be 0
+            console.log('ROM info:' + this.bus.mapperNo);
             // Cope mapper
             this.bus.mapperW = this.bus.mappersW[this.bus.mapperNo];
             var mapper_reset = this.bus.mappersR[this.bus.mapperNo];

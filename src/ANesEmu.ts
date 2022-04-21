@@ -22,66 +22,57 @@ class ANesEmu
 	/**
 	 * TV.
 	 */
-	 private _tv: HTMLCanvasElement = null;
-	 /**
-	  * TV Image Context.
-	  */
-	 private _txImage: CanvasRenderingContext2D;
+	private _tv: HTMLCanvasElement = null;
+	/**
+	 * TV Image Context.
+	 */
+	private _txImage: CanvasRenderingContext2D;
 	/**
 	 * TV Image Frame Data.
 	 */
-	 private _tvImageFrameData: ImageData = null;
-	 /**
-	  * TV Audio Context.
-	  */
-	 private _tvAudio: AudioContext;
+	private _tvImageFrameData: ImageData = null;
 	/**
-	 * 外观.
+	 * TV Audio Context.
 	 */
-	//public static ui: UI;
+	private _tvAudio: AudioContext;
 	/**
-	 * 属性.
-	public static output: TextField = new TextField;
-	private binLoader: URLLoader;
-	private tracker: Loader;
-	private romUrl: String;
+	 * TV Audio Context Processor.
 	 */
+	private _tvAudioProcessor:ScriptProcessorNode;
 	/**
 	 * Constructor.
 	 */
 	constructor()
 	{
-		this.showPerformance();
-		this.loadRomFromUrl('index.rom', this.onLoadROM.bind(this));
 		document.addEventListener('keydown', this.onKeyDown.bind(this));
 		document.addEventListener('keyup', this.onKeyUp.bind(this));
 		window.requestAnimationFrame(this.onFrame.bind(this));
-		document.onpointerdown = function (this: ANesEmu): void
+		//document.onpointerdown = function (this: ANesEmu): void{}.bind(this);
+		window.onfocus = this.onActivate.bind(this);
+		window.onblur = this.onDeactivate.bind(this);
+		var fileInputer = document.getElementById('fileInputer') as HTMLInputElement;
+		fileInputer.onchange = this.loadRomFromLocal;
+
+		this.showPerformance();
+		//this.loadRomFromUrl('index.rom', this.onLoadROM.bind(this));
+	}
+	/**
+	 * Load ROM from local.
+	 */
+	public loadRomFromLocal(this: GlobalEventHandlers, e1: Event): any
+	{
+		var reader = new FileReader();
+		reader.onload = function (e2)
 		{
-			if (this._tvAudio == null)
-			{
-				this._tvAudio = new window.AudioContext();
-				var asp = this._tvAudio.createScriptProcessor(2048, 0, 2);
-				asp.onaudioprocess = this.onSample.bind(this);
-				asp.connect(this._tvAudio.destination);
-			}
-		}.bind(this);
-		/*
-		// 3.加载ROM
-		romUrl = this.loaderInfo.parameters.romUrl || 'default.txt';
-		binLoader = new URLLoader;
-		binLoader.dataFormat = URLLoaderDataFormat.BINARY;
-		binLoader.addEventListener(Event.COMPLETE, onCompleteBin);
-		binLoader.addEventListener(ProgressEvent.PROGRESS, onLoadingBin);
-		binLoader.addEventListener(IOErrorEvent.IO_ERROR, onErrorBin);
-		binLoader.addEventListener(SecurityErrorEvent.SECURITY_ERROR, onErrorBin);
-		binLoader.load(new URLRequest(romUrl));
-		// 4.加载UI
-		uiLoader: Loader = new Loader;
-		uiLoader.loadBytes(new UiBin);
-		uiLoader.contentLoaderInfo.addEventListener(Event.COMPLETE, onCompleteUI);
-		addChild(uiLoader);
-		*/
+			var content = e2.target.result as ArrayBuffer;
+			myEmu.onLoadROM(content);
+		};
+		reader.onerror = function (err)
+		{
+			console.error("Failed to read file", err);
+		}
+		var inputer = e1.target as HTMLInputElement;
+		reader.readAsArrayBuffer(inputer.files[0]);
 	}
 	/**
 	 * Load ROM from url.
@@ -113,12 +104,23 @@ class ANesEmu
 	 */
 	private onLoadROM(bytes: ArrayBuffer): void
 	{
+		console.log('onLoadRom success');
 		this._rom = bytes;
 		// init TV
 		var canvas = document.getElementById('myCanvas') as HTMLCanvasElement;
-		this._txImage = canvas.getContext('2d');
 		this._tv = canvas;
+		this._txImage = canvas.getContext('2d');
 		this._tvImageFrameData = this._txImage.createImageData(canvas.width, canvas.height);
+		if (this._tvAudio != null)
+		{
+			this._tvAudio.close();
+			this._tvAudioProcessor.disconnect();
+			this._tvAudioProcessor.onaudioprocess = null;
+		}
+		this._tvAudio = new window.AudioContext();
+		this._tvAudioProcessor = this._tvAudio.createScriptProcessor(2048, 0, 2);
+		this._tvAudioProcessor.onaudioprocess = this.onSample.bind(this);
+		this._tvAudioProcessor.connect(this._tvAudio.destination);
 		// replay game
 		this.replay();
 	}
@@ -137,7 +139,7 @@ class ANesEmu
 		this.vm.connect(this._tvImageFrameData);
 		// 3.insert cartridge
 		this.vm.insertCartridge(this._rom);
-		// 连接手柄
+		// 4.insert joypay
 		this.vm.insertJoypay();
 	}
 	/**
@@ -149,13 +151,13 @@ class ANesEmu
 		{
 			this._stats.begin();
 		}
-		if (this._tv != null && this._tvImageFrameData != null)
-		{
-			this._txImage.putImageData(this._tvImageFrameData, 0, 0);
-		}
-		if (this.vm != null)
+		if (this.vm != null && this.vm.stop == false)
 		{
 			this.vm.renderFrame();
+			if (this._tv != null && this._tvImageFrameData != null)
+			{
+				this._txImage.putImageData(this._tvImageFrameData, 0, 0);
+			}
 		}
 		if (this._stats != null)
 		{
@@ -168,9 +170,51 @@ class ANesEmu
 	 */
 	private onSample(e: AudioProcessingEvent): void
 	{
-		if (this.vm != null)
+		if (this.vm != null && this.vm.stop == false)
 		{
 			this.vm.renderSample(e.outputBuffer);
+		}
+	}
+	/**
+	 * @private
+	 */
+	private onKeyDown(e: KeyboardEvent): void
+	{
+		if (this.vm != null && this.vm.stop == false)
+		{
+			this.vm.onKeyDown(e.keyCode);
+		}
+	}
+	/**
+	 * @private
+	 */
+	private onKeyUp(e: KeyboardEvent): void
+	{
+		if (this.vm != null && this.vm.stop == false)
+		{
+			this.vm.onKeyUp(e.keyCode);
+		}
+	}
+	/**
+	 * @private
+	 */
+	private onActivate(e: Event): void
+	{
+		if (this.vm != null)
+		{
+			this.vm.stop = false;
+			console.log('Pause VM');
+		}
+	}
+	/**
+	 * @private
+	 */
+	private onDeactivate(e: Event): void
+	{
+		if (this.vm != null)
+		{
+			this.vm.stop = true;
+			console.log('Resume VM');
 		}
 	}
 	/**
@@ -184,75 +228,7 @@ class ANesEmu
 		}
 		this._stats = new Stats();
 		this._stats.showPanel(0); /* 0: fps, 1: ms, 2: mb, 3+: custom */
-		document.body.appendChild(this._stats.dom);
+		document.getElementById('myStats').appendChild(this._stats.dom);
 	}
-	/**
-	 * @private
-	 */
-	private onKeyDown(e: KeyboardEvent): void
-	{
-		if (this.vm != null)
-		{
-			this.vm.onKeyDown(e.keyCode);
-		}
-	}
-	/**
-	 * @private
-	 */
-	private onKeyUp(e: KeyboardEvent): void
-	{
-		if (this.vm != null)
-		{
-			this.vm.onKeyUp(e.keyCode);
-		}
-	}
-	/**
-	 * @private
-	private _focus: Shape = new Shape;
-	 */
-	/**
-	 * @private
-	private function onActivate(e: Event): void
-	{
-		if (_focus.parent)
-		{
-			_focus.parent.removeChild(_focus);
-		}
-	}
-	 */
-	/**
-	 * @private
-	private function onDeactivate(e: Event): void
-	{
-		if (_focus.parent)
-		{
-			return;
-		}
-		_focus.graphics.beginFill(0xFF0000, 0.2);
-		_focus.graphics.drawRect(0, 0, stage.stageWidth, stage.stageHeight);
-		stage.addChild(_focus);
-	}
-	 */
-	/**
-	 * @private
-	private function onLoadingBin(e: ProgressEvent): void
-	{
-		if (e.bytesTotal == 0)
-		{
-			output.text = 'LOADING ROM...';
-			return;
-		}
-		per: String = ((e.bytesLoaded / e.bytesTotal) * 100).toFixed(2);
-		output.text = 'LOAD ROM:' + per + '%';
-	}
-	 */
-	/**
-	 * @private
-	private function onErrorBin(e: Event): void
-	{
-		output.text = e.type + ':' + romUrl;
-	}
-	 */
 }
-//debugger;
-var ANewEmu = new ANesEmu();
+var myEmu = new ANesEmu();

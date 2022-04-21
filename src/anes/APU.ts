@@ -108,8 +108,10 @@ namespace anes
 
 			var bodySize: number = this.sampleWritePos;
 			var availableSize: number = bodySize - this.sampleReadPos;
+			//console.log('pushSamplesTo', availableSize);
 			if (availableSize < onceSamples)
 			{
+				//console.log('empty note', availableSize);
 				// fill empty
 				for (var ch = 0; ch < output.numberOfChannels; ch++)
 				{
@@ -137,6 +139,7 @@ namespace anes
 				this.sampleBuffer.copyWithin(0, this.sampleReadPos, bodySize);
 				this.sampleReadPos = 0;
 				this.sampleWritePos = sliceLen;
+				//console.log('sliceLen', bodySize, sliceLen);
 			}
 		}
 		/**
